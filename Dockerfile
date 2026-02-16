@@ -16,3 +16,10 @@ ADD https://raw.githubusercontent.com/logos-co/node-configs/refs/heads/master/wa
 
 # Run
 CMD ["./logos/bin/logoscore", "-m", "./modules", "--load-modules", "waku_module", "-c", "waku_module.initWaku(@waku_config.json)", "-c", "waku_module.startWaku()"]
+
+# Logos Storage
+RUN ./package-manager/bin/lgpm --modules-dir ./modules/ install logos-storage-module
+ADD https://raw.githubusercontent.com/logos-co/node-configs/refs/heads/master/storage_config.json .
+
+# Run
+CMD ["./logos/bin/logoscore", "-m", "./modules", "--load-modules", "storage_module", "-c", "storage_module.init(@storage_config.json)", "-c", "storage_module.start()", "-c", "storage_module.importFiles(/tmp/storage_files)"]
