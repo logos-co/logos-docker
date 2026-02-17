@@ -6,8 +6,8 @@ RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
 WORKDIR /app
 
 # Build logos and package manager
-RUN nix build github:logos-co/logos-liblogos --out-link ./logos
-RUN nix build github:logos-co/logos-package-manager-module#cli --out-link ./package-manager
+RUN nix build github:logos-co/logos-liblogos --out-link ./logos --refresh
+RUN nix build github:logos-co/logos-package-manager-module#cli --out-link ./package-manager --refresh
 
 # Setup modules and config
 RUN mkdir modules \
