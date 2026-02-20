@@ -1,0 +1,25 @@
+{
+	"host": "0.0.0.0",
+	"tcpPort": 60010,
+	"key": null,
+	"clusterId": 16,
+	"relay": true,
+	"store": true,
+	"shards": [
+		1,
+		32,
+		64,
+		128,
+		256
+	],
+	"maxMessageSize": "1024KiB",
+	"dnsDiscovery": true,
+	"dnsDiscoveryUrl": "enrtree://AMOJVZX4V6EXP7NTJPMAYJYST2QP6AJXYW76IU6VGJS7UVSNDYZG4@boot.prod.status.nodes.status.im",
+	"discv5Discovery": false,
+	"numShardsInNetwork": 257,
+	"discv5EnrAutoUpdate": false,
+	"logLevel": "INFO",
+	"keepAlive": true,
+	"storeMessageDbUrl": "postgres://myuser:mypassword@127.0.0.1:5432/mydb",
+	"storeMessageRetentionPolicy": "size:1GB"
+}

@@ -10,3 +10,6 @@ or, from a local checkout:
 docker build -t logos .
 docker run logos
 ```
+
+If need to override env vars. Please `cp .env.example .env` and adapt .env as you wish.
+

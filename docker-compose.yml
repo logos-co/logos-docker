@@ -1,0 +1,58 @@
+x-pg-pass: &pg_pass ${POSTGRES_PASSWORD:-mypassword}
+x-pg-user: &pg_user ${POSTGRES_USER:-myuser}
+
+x-pg-environment: &pg_env
+  POSTGRES_USER: *pg_user
+  POSTGRES_PASSWORD: *pg_pass
+
+services:
+  logos-core:
+    image: ${LOGOS_CORE_IMAGE:-logos}
+    restart: on-failure
+    ports:
+      - 60010:60010/tcp
+      - 60010:60010/udp
+      - 9005:9005/udp
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "10"
+        compress: "true"
+        tag: "nwaku-{{.ID}}"
+    environment:
+      NO_COLOR: "true" # avoid chronicles print with color codes
+      <<:
+        - *pg_env
+    volumes:
+      - ./run_logos_core.sh:/opt/run_logos_core.sh:Z
+      - ./configs/delivery-config.json:/logos/cfg/delivery-config.json:Z
+      - ./configs/storage-config.json:/logos/cfg/storage-config.json:Z
+    entrypoint: sh
+    command:
+      - /opt/run_logos_core.sh
+    depends_on:
+      - postgres
+
+  postgres:
+    # This service is used when the Waku node has the 'store' protocol enabled
+    # and the store-message-db-url is set to use Postgres
+    image: postgres:16-alpine
+    restart: on-failure:5
+    shm_size: "${POSTGRES_SHM:-1g}"  # Set default shared memory size to 1 GB
+    environment:
+      POSTGRES_DB: mydb
+      <<: *pg_env
+    volumes:
+      - ./configs/postgres_cfg/postgresql.conf:/etc/postgresql/postgresql.conf:Z
+      - ./configs/postgres_cfg/db.sql:/docker-entrypoint-initdb.d/db.sql:Z
+      - ${PG_DATA_DIR:-./postgres-data-dir}:/var/lib/postgresql/data:Z
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    ports:
+      - 127.0.0.1:5432:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 80s
