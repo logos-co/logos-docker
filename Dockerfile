@@ -48,6 +48,7 @@ EXPOSE 3400/udp
 # REST
 EXPOSE 8080/tcp
 
+ENV LOGOS_BLOCKCHAIN_DEPLOYMENT=devnet
 ENV LOGOS_BLOCKCHAIN_CONFIG_PATH=/etc/logos/blockchain/node_config.yaml
 ENV LOGOS_BLOCKCHAIN_PARAMETERS='{\
   "initial_peers": [\
