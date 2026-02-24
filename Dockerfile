@@ -33,21 +33,15 @@ RUN mkdir -p /etc/logos/blockchain
 
 RUN ./package-manager/bin/lgpm --modules-dir ./modules/ install logos-blockchain-module
 
-RUN nix shell nixpkgs#patchelf -c sh -c "\
-old=\$(patchelf --print-needed modules/liblogos_blockchain_module/liblogos_blockchain_module.so | grep logos_blockchain) && \
-patchelf --replace-needed \"\$old\" liblogos_blockchain.so \
-modules/liblogos_blockchain_module/liblogos_blockchain_module.so && \
-patchelf --set-rpath '\$ORIGIN' \
-modules/liblogos_blockchain_module/liblogos_blockchain_module.so \
-"
-
-# Swarm
+### Ports
+#### Swarm
 EXPOSE 3000/udp
-# Blend
+#### Blend
 EXPOSE 3400/udp
-# REST
+#### REST
 EXPOSE 8080/tcp
 
+### Environment
 ENV LOGOS_BLOCKCHAIN_DEPLOYMENT=devnet
 ENV LOGOS_BLOCKCHAIN_CONFIG_PATH=/etc/logos/blockchain/node_config.yaml
 ENV LOGOS_BLOCKCHAIN_PARAMETERS='{\
@@ -60,6 +54,14 @@ ENV LOGOS_BLOCKCHAIN_PARAMETERS='{\
   "output": "/etc/logos/blockchain/node_config.yaml"\
 }'
 
+### lib workaround
+RUN nix shell nixpkgs#patchelf -c sh -c "\
+old=\$(patchelf --print-needed modules/liblogos_blockchain_module/liblogos_blockchain_module.so | grep logos_blockchain) && \
+patchelf --replace-needed \"\$old\" liblogos_blockchain.so \
+modules/liblogos_blockchain_module/liblogos_blockchain_module.so && \
+patchelf --set-rpath '\$ORIGIN' \
+modules/liblogos_blockchain_module/liblogos_blockchain_module.so \
+"
 
 # Entrypoint
 
