@@ -33,6 +33,14 @@ RUN mkdir -p /etc/logos/blockchain
 
 RUN ./package-manager/bin/lgpm --modules-dir ./modules/ install logos-blockchain-module
 
+RUN nix shell nixpkgs#patchelf -c sh -c "\
+old=\$(patchelf --print-needed modules/liblogos_blockchain_module/liblogos_blockchain_module.so | grep logos_blockchain) && \
+patchelf --replace-needed \"\$old\" liblogos_blockchain.so \
+modules/liblogos_blockchain_module/liblogos_blockchain_module.so && \
+patchelf --set-rpath '\$ORIGIN' \
+modules/liblogos_blockchain_module/liblogos_blockchain_module.so \
+"
+
 # Swarm
 EXPOSE 3000/udp
 # Blend
@@ -48,8 +56,11 @@ ENV LOGOS_BLOCKCHAIN_PARAMETERS='{\
     "/ip4/65.109.51.37/udp/3003/quic-v1/p2p/12D3KooWGdkKHAQ6ZRQ7YW6zhMgMQjAaidyp4LuATNgKUtmB68GU",\
     "/ip4/65.109.51.37/udp/3000/quic-v1"\
   ],\
-  "output": $LOGOS_BLOCKCHAIN_CONFIG_PATH\
+  "output": "/etc/logos/blockchain/node_config.yaml"\
 }'
+
+
+# Entrypoint
 
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
