@@ -1,4 +1,12 @@
-FROM nixos/nix:latest
+FROM ubuntu:24.04
+
+# Install Nix dependencies
+RUN apt-get update -y && apt-get install -y curl bzip2 gnupg
+# Install Nix, ensuring it doesn't start a daemon in the container
+RUN curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install linux --no-start-daemon --no-confirm --init none
+
+# Add Nix to the PATH
+ENV PATH="/nix/var/nix/profiles/default/bin:/nix/var/nix/profiles/default/sbin:/root/.nix-profile/bin:$PATH"
 
 # Enable flakes
 RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
@@ -6,8 +14,8 @@ RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
 WORKDIR /app
 
 # Build logos and package manager
-RUN nix build github:logos-co/logos-liblogos --out-link ./logos --refresh
-RUN nix build github:logos-co/logos-package-manager-module#cli --out-link ./package-manager --refresh
+RUN nix bundle --bundler github:logos-co/nix-bundle-dir/complete-qt-plugin-bundling#qtApp github:logos-co/logos-liblogos/properly-handle-portable-modules --out-link ./logos --refresh
+RUN nix bundle --bundler github:logos-co/nix-bundle-dir/complete-qt-plugin-bundling#qtApp github:logos-co/logos-package-manager-module/properly-handle-portable-modules#cli --out-link ./package-manager --refresh
 
 # Setup modules and config
 RUN mkdir modules \
