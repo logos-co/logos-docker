@@ -14,8 +14,8 @@ RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
 WORKDIR /app
 
 # Build logos and package manager
-RUN nix bundle --bundler github:logos-co/nix-bundle-dir/fix-applicationDirPath#qtApp      github:logos-co/logos-liblogos/properly-handle-portable-modules --out-link ./logos --refresh
-RUN nix bundle --bundler github:logos-co/nix-bundle-dir/complete-qt-plugin-bundling#qtApp github:logos-co/logos-package-manager-module/properly-handle-portable-modules#cli --out-link ./package-manager --refresh
+RUN nix bundle --bundler github:logos-co/nix-bundle-dir#qtApp github:logos-co/logos-liblogos/properly-handle-portable-modules --out-link ./logos --refresh
+RUN nix bundle --bundler github:logos-co/nix-bundle-dir#qtApp github:logos-co/logos-package-manager-module/properly-handle-portable-modules#cli --out-link ./package-manager --refresh
 
 # Setup modules and config
 RUN mkdir modules
@@ -53,15 +53,6 @@ ENV LOGOS_BLOCKCHAIN_PARAMETERS='{\
   ],\
   "output": "/etc/logos/blockchain/node_config.yaml"\
 }'
-
-### lib workaround
-RUN nix shell nixpkgs#patchelf -c sh -c "\
-old=\$(patchelf --print-needed modules/liblogos_blockchain_module/liblogos_blockchain_module.so | grep logos_blockchain) && \
-patchelf --replace-needed \"\$old\" liblogos_blockchain.so \
-modules/liblogos_blockchain_module/liblogos_blockchain_module.so && \
-patchelf --set-rpath '\$ORIGIN' \
-modules/liblogos_blockchain_module/liblogos_blockchain_module.so \
-"
 
 # Entrypoint
 
