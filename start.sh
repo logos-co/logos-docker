@@ -14,6 +14,17 @@ if [ -n "$missing" ]; then
   exit 1
 fi
 
+# ---- Generate config if missing ----
+
+LOGOS_BLOCKCHAIN_GENERATE_USER_CONFIG_CMD=""
+
+if [ ! -f "$LOGOS_BLOCKCHAIN_CONFIG_PATH" ]; then
+  echo "[Blockchain] No user config found at $LOGOS_BLOCKCHAIN_CONFIG_PATH, generating..."
+  LOGOS_BLOCKCHAIN_GENERATE_USER_CONFIG_CMD="-c liblogos_blockchain_module.generate_user_config_from_str('${LOGOS_BLOCKCHAIN_PARAMETERS}')"
+else
+  echo "[Blockchain] Using existing user config at $LOGOS_BLOCKCHAIN_CONFIG_PATH"
+fi
+
 # ---- Run ----
 
 #exec ./logos/bin/logoscore \
@@ -24,12 +35,12 @@ fi
 #  -c "storage_module.init(@storage_config_test.json)" \
 #  -c "storage_module.start()" \
 #  -c "storage_module.importFiles('/tmp/storage_files')" \
-#  -c "liblogos_blockchain_module.generate_user_config_from_str('${LOGOS_BLOCKCHAIN_PARAMETERS}')" \
-#  -c "liblogos_blockchain_module.start('${LOGOS_BLOCKCHAIN_CONFIG_PATH}')"
+#  "$LOGOS_BLOCKCHAIN_GENERATE_USER_CONFIG_CMD" \
+#  -c "liblogos_blockchain_module.start('${LOGOS_BLOCKCHAIN_CONFIG_PATH}', '${LOGOS_BLOCKCHAIN_DEPLOYMENT}')"
 
 exec ./logos/bin/logoscore \
   -m ./modules \
   --load-modules liblogos_blockchain_module \
-  -c "liblogos_blockchain_module.generate_user_config_from_str('${LOGOS_BLOCKCHAIN_PARAMETERS}')" \
+  "$LOGOS_BLOCKCHAIN_GENERATE_USER_CONFIG_CMD" \
   -c "liblogos_blockchain_module.start('${LOGOS_BLOCKCHAIN_CONFIG_PATH}', '${LOGOS_BLOCKCHAIN_DEPLOYMENT}')"
 
