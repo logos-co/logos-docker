@@ -46,13 +46,14 @@ ENV LOGOS_BLOCKCHAIN_DEPLOYMENT=devnet
 ENV LOGOS_BLOCKCHAIN_CONFIG_PATH=/etc/logos/blockchain/node_config.yaml
 ENV LOGOS_BLOCKCHAIN_PARAMETERS='{\
   "initial_peers": [\
-    "/ip4/65.109.51.37/udp/3001/quic-v1/p2p/12D3KooWNzrYagh1S3EbmPpywFkLK2gGFApFaHYc4VgvqMGLLmeP",\
-    "/ip4/65.109.51.37/udp/3002/quic-v1/p2p/12D3KooWH5pQ7KeLEZJsc933UXBXPQDMHLa897opPP9YaS3kEMi1",\
-    "/ip4/65.109.51.37/udp/3003/quic-v1/p2p/12D3KooWGdkKHAQ6ZRQ7YW6zhMgMQjAaidyp4LuATNgKUtmB68GU",\
-    "/ip4/65.109.51.37/udp/3000/quic-v1"\
+    "/ip4/65.109.51.37/udp/3001/quic-v1/p2p/12D3KooWCvKvaztLMGiQX3Nm3K3Nh7SA4bBHVN2drB4TQHLjamzQ",\
+    "/ip4/65.109.51.37/udp/3002/quic-v1/p2p/12D3KooWG2xMrHB6Bck5ZP7idprtBB26RCH16bePxp1NkGsUNvxx",\
+    "/ip4/65.109.51.37/udp/3003/quic-v1/p2p/12D3KooWB8BcfD96TTztJgmvBZ7thBS94LZxvGBiyAdGj5bLcRAU",\
+    "/ip4/65.109.51.37/udp/3000/quic-v1/p2p/12D3KooWLzWAnx4b4inFDYkwS6j6YTffJYTjbLYvqQXcFgaQkaGq"\
   ],\
   "output": "/etc/logos/blockchain/node_config.yaml"\
 }'
+RUN nix shell nixpkgs#jq -c sh -c 'printf "%s\n" "$LOGOS_BLOCKCHAIN_PARAMETERS" | jq -e . >/dev/null'  # Validate JSON
 
 # Entrypoint
 
