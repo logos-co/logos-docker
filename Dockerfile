@@ -54,15 +54,6 @@ ENV LOGOS_BLOCKCHAIN_PARAMETERS='{\
   "output": "/etc/logos/blockchain/node_config.yaml"\
 }'
 
-### lib workaround
-RUN nix shell nixpkgs#patchelf -c sh -c "\
-old=\$(patchelf --print-needed modules/liblogos_blockchain_module/liblogos_blockchain_module.so | grep logos_blockchain) && \
-patchelf --replace-needed \"\$old\" liblogos_blockchain.so \
-modules/liblogos_blockchain_module/liblogos_blockchain_module.so && \
-patchelf --set-rpath '\$ORIGIN' \
-modules/liblogos_blockchain_module/liblogos_blockchain_module.so \
-"
-
 # Entrypoint
 
 COPY start.sh /start.sh
