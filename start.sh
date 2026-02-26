@@ -27,20 +27,14 @@ fi
 
 # ---- Run ----
 
-#exec ./logos/bin/logoscore \
-#  -m ./modules \
-#  --load-modules waku_module,storage_module,liblogos_blockchain_module \
-#  -c "waku_module.initWaku(@waku_config.json)" \
-#  -c "waku_module.startWaku()" \
-#  -c "storage_module.init(@storage_config_test.json)" \
-#  -c "storage_module.start()" \
-#  -c "storage_module.importFiles('/tmp/storage_files')" \
-#  "$LOGOS_BLOCKCHAIN_GENERATE_USER_CONFIG_CMD" \
-#  -c "liblogos_blockchain_module.start('${LOGOS_BLOCKCHAIN_CONFIG_PATH}', '${LOGOS_BLOCKCHAIN_DEPLOYMENT}')"
-
 exec ./logos/bin/logoscore \
   -m ./modules \
-  --load-modules liblogos_blockchain_module \
+  --load-modules waku_module,storage_module,liblogos_blockchain_module \
+  -c "waku_module.initWaku(@waku_config.json)" \
+  -c "waku_module.startWaku()" \
+  -c "storage_module.init(@storage_config_test.json)" \
+  -c "storage_module.start()" \
+  -c "storage_module.importFiles('/tmp/storage_files')" \
   "$LOGOS_BLOCKCHAIN_GENERATE_USER_CONFIG_CMD" \
   -c "liblogos_blockchain_module.start('${LOGOS_BLOCKCHAIN_CONFIG_PATH}', '${LOGOS_BLOCKCHAIN_DEPLOYMENT}')"
 
