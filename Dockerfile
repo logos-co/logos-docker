@@ -18,33 +18,41 @@ RUN nix bundle --bundler github:logos-co/nix-bundle-dir/1ecb9662145a1ad84007a970
 RUN nix bundle --bundler github:logos-co/nix-bundle-dir/1ecb9662145a1ad84007a970b4bef50a4af159c9#qtApp github:logos-co/logos-package-manager-module/4c49df4c42bfb5bc4a6a27e526ab9755baa064a9#cli --out-link ./package-manager --refresh
 
 # Setup modules and config
-RUN mkdir modules \
-    && ./package-manager/bin/lgpm --modules-dir ./modules/ install logos-waku-module
+RUN mkdir modules
+
+## Delivery
+RUN ./package-manager/bin/lgpm --modules-dir ./modules/ install logos-waku-module
 ADD https://raw.githubusercontent.com/logos-co/node-configs/refs/heads/master/waku_config.json .
 
-# Logos Storage
+## Storage
 RUN ./package-manager/bin/lgpm --modules-dir ./modules/ install logos-storage-module
 ADD https://raw.githubusercontent.com/logos-co/node-configs/refs/heads/master/storage_config_test.json .
 
+## Blockchain
+RUN mkdir -p /etc/logos/blockchain
 
-# Logos Blockchain
-ENV LOGOS_BLOCKCHAIN_CONFIG_PATH=~/logos_blockchain_config/node_config.yaml
-ENV LOGOS_BLOCKCHAIN_PARAMETERS={
-  "initial_peers": [
-    "/ip4/65.109.51.37/udp/3001/quic-v1/p2p/12D3KooWNzrYagh1S3EbmPpywFkLK2gGFApFaHYc4VgvqMGLLmeP",
-    "/ip4/65.109.51.37/udp/3002/quic-v1/p2p/12D3KooWH5pQ7KeLEZJsc933UXBXPQDMHLa897opPP9YaS3kEMi1",
-    "/ip4/65.109.51.37/udp/3003/quic-v1/p2p/12D3KooWGdkKHAQ6ZRQ7YW6zhMgMQjAaidyp4LuATNgKUtmB68GU",
-    "/ip4/65.109.51.37/udp/3000/quic-v1"
-  ],
-  "output": $LOGOS_BLOCKCHAIN_CONFIG_PATH
-}
+RUN ./package-manager/bin/lgpm --modules-dir ./modules/ install logos-blockchain-module
 
-# Run
-CMD ./logos/bin/logoscore -m ./modules --load-modules "waku_module,storage_module, logos_blockchain_module" \
-	-c "waku_module.initWaku(@waku_config.json)" \
-	-c "waku_module.startWaku()" \
-	-c "storage_module.init(@storage_config_test.json)" \
-	-c "storage_module.start()" \
-	-c "storage_module.importFiles('/tmp/storage_files')" \
-	-c "logos_blockchain_module.generate_user_config_from_str($LOGOS_BLOCKCHAIN_PARAMETERS)" \
-	-c "logos_blockchain_module.start($LOGOS_BLOCKCHAIN_CONFIG_PATH)"
+# Swarm
+EXPOSE 3000/udp
+# Blend
+EXPOSE 3400/udp
+# REST
+EXPOSE 8080/tcp
+
+ENV LOGOS_BLOCKCHAIN_CONFIG_PATH=/etc/logos/blockchain/node_config.yaml
+ENV LOGOS_BLOCKCHAIN_PARAMETERS='{\
+  "initial_peers": [\
+    "/ip4/65.109.51.37/udp/3001/quic-v1/p2p/12D3KooWNzrYagh1S3EbmPpywFkLK2gGFApFaHYc4VgvqMGLLmeP",\
+    "/ip4/65.109.51.37/udp/3002/quic-v1/p2p/12D3KooWH5pQ7KeLEZJsc933UXBXPQDMHLa897opPP9YaS3kEMi1",\
+    "/ip4/65.109.51.37/udp/3003/quic-v1/p2p/12D3KooWGdkKHAQ6ZRQ7YW6zhMgMQjAaidyp4LuATNgKUtmB68GU",\
+    "/ip4/65.109.51.37/udp/3000/quic-v1"\
+  ],\
+  "output": $LOGOS_BLOCKCHAIN_CONFIG_PATH\
+}'
+
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
+CMD ["/start.sh"]
+
