@@ -32,6 +32,9 @@ ADD https://raw.githubusercontent.com/logos-co/node-configs/refs/heads/master/st
 RUN mkdir -p /etc/logos/blockchain
 
 RUN ./package-manager/bin/lgpm --modules-dir ./modules/ install logos-blockchain-module
+RUN chmod u+x ./modules/liblogos_blockchain_module/circuits/**/witness_generator
+RUN chmod u+x ./modules/liblogos_blockchain_module/circuits/prover
+RUN chmod u+x ./modules/liblogos_blockchain_module/circuits/verifier
 
 ### Ports
 #### Swarm
