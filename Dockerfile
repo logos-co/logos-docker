@@ -60,8 +60,8 @@ RUN nix shell nixpkgs#jq -c sh -c 'printf "%s\n" "$LOGOS_BLOCKCHAIN_PARAMETERS" 
 
 # Entrypoint
 
-COPY start.sh /start.sh
-RUN chmod +x /start.sh
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-CMD ["/start.sh"]
+CMD ["/entrypoint.sh"]
 

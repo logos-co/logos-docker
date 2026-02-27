@@ -24,24 +24,25 @@ docker run \
 
 ---
 
-## Dev helper: `run.sh`
+## Dev helper: `./scripts/run.sh`
 
 For development, the repository provides a helper script that wraps `docker build` and `docker run`:
 
 ```bash
-./run.sh
+./scripts/run.sh
 ```
 
 See available options:
 
 ```bash
-./run.sh --help
+./scripts/run.sh --help
 ```
 
 Preview commands without executing:
 
 ```bash
-DRY_RUN=1 ./run.sh
+DRY_RUN=1 ./scripts/run.sh
 ```
 
 Note: `run.sh` is a developer convenience script. It is not a final or stable interface and may change.
+
