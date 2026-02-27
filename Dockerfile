@@ -14,8 +14,8 @@ RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
 WORKDIR /app
 
 # Build logos and package manager
-RUN nix bundle --bundler github:logos-co/nix-bundle-dir/complete-qt-plugin-bundling#qtApp github:logos-co/logos-liblogos/properly-handle-portable-modules --out-link ./logos --refresh
-RUN nix bundle --bundler github:logos-co/nix-bundle-dir/complete-qt-plugin-bundling#qtApp github:logos-co/logos-package-manager-module/properly-handle-portable-modules#cli --out-link ./package-manager --refresh
+RUN nix bundle --bundler github:logos-co/nix-bundle-dir/1ecb9662145a1ad84007a970b4bef50a4af159c9#qtApp github:logos-co/logos-liblogos/19d29d4ef99292d9285b3a561cb7ea8029be3b74 --out-link ./logos --refresh
+RUN nix bundle --bundler github:logos-co/nix-bundle-dir/1ecb9662145a1ad84007a970b4bef50a4af159c9#qtApp github:logos-co/logos-package-manager-module/4c49df4c42bfb5bc4a6a27e526ab9755baa064a9#cli --out-link ./package-manager --refresh
 
 # Setup modules and config
 RUN mkdir modules \
