@@ -29,12 +29,17 @@ RUN ./package-manager/bin/lgpm --modules-dir ./modules/ install logos-storage-mo
 ADD https://raw.githubusercontent.com/logos-co/node-configs/refs/heads/master/storage_config_test.json .
 
 ## Blockchain
+### Configuration
 RUN mkdir -p /etc/logos/blockchain
 
+### Install
 RUN ./package-manager/bin/lgpm --modules-dir ./modules/ install logos-blockchain-module
-RUN chmod u+x ./modules/liblogos_blockchain_module/circuits/**/witness_generator
-RUN chmod u+x ./modules/liblogos_blockchain_module/circuits/prover
-RUN chmod u+x ./modules/liblogos_blockchain_module/circuits/verifier
+
+### Make circuits executable
+RUN test -d ./modules/liblogos_blockchain_module/circuits && \
+    find ./modules/liblogos_blockchain_module/circuits -name witness_generator -exec chmod u+x {} + && \
+    find ./modules/liblogos_blockchain_module/circuits -name prover -exec chmod u+x {} + && \
+    find ./modules/liblogos_blockchain_module/circuits -name verifier -exec chmod u+x {} +
 
 ### Ports
 #### Swarm
@@ -59,7 +64,6 @@ ENV LOGOS_BLOCKCHAIN_PARAMETERS='{\
 RUN nix shell nixpkgs#jq -c sh -c 'printf "%s\n" "$LOGOS_BLOCKCHAIN_PARAMETERS" | jq -e . >/dev/null'  # Validate JSON
 
 # Entrypoint
-
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
