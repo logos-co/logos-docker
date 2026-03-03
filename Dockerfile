@@ -33,7 +33,7 @@ ADD https://raw.githubusercontent.com/logos-co/node-configs/refs/heads/master/st
 RUN mkdir -p /etc/logos/blockchain
 
 ### Install
-RUN ./package-manager/bin/lgpm --modules-dir ./modules/ install logos-blockchain-module
+RUN ./package-manager/bin/lgpm --release="build-20260303-26c5b47-57" --modules-dir ./modules/ install logos-blockchain-module
 
 ### Make circuits executable
 RUN test -d ./modules/liblogos_blockchain_module/circuits && \
