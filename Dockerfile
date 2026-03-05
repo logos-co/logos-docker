@@ -33,7 +33,7 @@ ADD https://raw.githubusercontent.com/logos-co/node-configs/refs/heads/master/st
 RUN mkdir -p /etc/logos/blockchain
 
 ### Install
-RUN ./package-manager/bin/lgpm --release="build-20260303-26c5b47-57" --modules-dir ./modules/ install logos-blockchain-module
+RUN ./package-manager/bin/lgpm --release="build-20260304-e1605be-63" --modules-dir ./modules/ install logos-blockchain-module
 
 ### Make circuits executable
 RUN test -d ./modules/liblogos_blockchain_module/circuits && \
@@ -54,10 +54,10 @@ ENV LOGOS_BLOCKCHAIN_DEPLOYMENT=devnet
 ENV LOGOS_BLOCKCHAIN_CONFIG_PATH=/etc/logos/blockchain/node_config.yaml
 ENV LOGOS_BLOCKCHAIN_PARAMETERS='{\
   "initial_peers": [\
-    "/ip4/65.109.51.37/udp/3001/quic-v1/p2p/12D3KooWCvKvaztLMGiQX3Nm3K3Nh7SA4bBHVN2drB4TQHLjamzQ",\
-    "/ip4/65.109.51.37/udp/3002/quic-v1/p2p/12D3KooWG2xMrHB6Bck5ZP7idprtBB26RCH16bePxp1NkGsUNvxx",\
-    "/ip4/65.109.51.37/udp/3003/quic-v1/p2p/12D3KooWB8BcfD96TTztJgmvBZ7thBS94LZxvGBiyAdGj5bLcRAU",\
-    "/ip4/65.109.51.37/udp/3000/quic-v1/p2p/12D3KooWLzWAnx4b4inFDYkwS6j6YTffJYTjbLYvqQXcFgaQkaGq"\
+    "/ip4/65.109.51.37/udp/3000/quic-v1/p2p/12D3KooWL7a8LBbLRYnabptHPFBCmAs49Y7cVMqvzuSdd43tAJk8",\
+    "/ip4/65.109.51.37/udp/3001/quic-v1/p2p/12D3KooWPLeAcachoUm68NXGD7tmNziZkVeMmeBS5NofyukuMRJh",\
+    "/ip4/65.109.51.37/udp/3002/quic-v1/p2p/12D3KooWKFNe4gS5DcCcRUVGdMjZp3fUWu6q6gG5R846Ui1pccHD",\
+    "/ip4/65.109.51.37/udp/3003/quic-v1/p2p/12D3KooWAnriLgXyQnGTYz1zPWPkQL3rthTKYLzuAP7MMnbgsxzR"\
   ],\
   "output": "/etc/logos/blockchain/node_config.yaml"\
 }'
