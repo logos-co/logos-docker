@@ -1,30 +1,43 @@
-FROM ubuntu:24.04
-
-# Install Nix dependencies
-RUN apt-get update -y && apt-get install -y curl bzip2 gnupg
-# Install Nix, ensuring it doesn't start a daemon in the container
-RUN curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install linux --no-start-daemon --no-confirm --init none
-
-# Add Nix to the PATH
-ENV PATH="/nix/var/nix/profiles/default/bin:/nix/var/nix/profiles/default/sbin:/root/.nix-profile/bin:$PATH"
-
-# Enable flakes
+# Stage 1: Build
+FROM nixos/nix:2.34.1 AS builder
 RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
-
 WORKDIR /app
 
-# Build logos and package manager
-RUN nix bundle --bundler github:logos-co/nix-bundle-dir/1ecb9662145a1ad84007a970b4bef50a4af159c9#qtApp github:logos-co/logos-liblogos/19d29d4ef99292d9285b3a561cb7ea8029be3b74 --out-link ./logos --refresh
-RUN nix bundle --bundler github:logos-co/nix-bundle-dir/1ecb9662145a1ad84007a970b4bef50a4af159c9#qtApp github:logos-co/logos-package-manager-module/4c49df4c42bfb5bc4a6a27e526ab9755baa064a9#cli --out-link ./package-manager --refresh
+RUN nix build 'github:logos-co/logos-logoscore-cli/c24e58eb8ddf817f5998ca4ead7a994e2a732cc8#cli-appimage' --out-link ./logoscore --refresh
+RUN nix build 'github:logos-co/logos-package-manager/a59f14eb1045df4364d8ce795498ad2e0b323e1e#cli-appimage' --out-link ./package-manager --refresh
+RUN nix build 'github:logos-co/logos-package-downloader/9f9531b82493b01c3ede0b6b5be04a7422fc6a6e#cli-appimage' --out-link ./package-downloader --refresh
 
-# Setup modules and config
+RUN mkdir -p /app-final/logos \
+    && cp -rL ./logoscore/* /app-final/logos/ \
+    && cp -rL ./package-manager/* /app-final/logos/ \
+    && cp -rL ./package-downloader/* /app-final/logos/
+
+# Stage 2: Runtime
+FROM ubuntu:24.04
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl netcat-openbsd && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app-final/logos /app/logos
+RUN cd /app/logos && for app in logoscore lgpm lgpd; do \
+        chmod a+rx "$app.AppImage" \
+        && "./$app.AppImage" --appimage-extract > /dev/null \
+        && mv squashfs-root "$app" \
+        && rm "$app.AppImage"; \
+    done
+RUN ln -s /app/logos/logoscore/AppRun /bin/logoscore \
+    && ln -s /app/logos/lgpm/AppRun /bin/lgpm \
+    && ln -s /app/logos/lgpd/AppRun /bin/lgpd
+
+RUN mkdir -p /etc/logos/blockchain && chown -R ubuntu:ubuntu /etc/logos
+
+USER ubuntu
+WORKDIR /home/ubuntu
+
+RUN mkdir packages \
+    && lgpd download logos-delivery-module --release build-20260422-1bfdb89-84 --output ./packages \
+    && lgpd download logos-storage-module --release build-20260422-1bfdb89-84 --output ./packages \
+    && lgpd download logos-blockchain-module --release build-20260422-1bfdb89-84 --output ./packages
+
 RUN mkdir modules \
-    && ./package-manager/bin/lgpm --modules-dir ./modules/ install logos-waku-module
-ADD https://raw.githubusercontent.com/logos-co/node-configs/refs/heads/master/waku_config.json .
+    && lgpm install --dir ./packages --modules-dir ./modules
 
-# Logos Storage
-RUN ./package-manager/bin/lgpm --modules-dir ./modules/ install logos-storage-module
-ADD https://raw.githubusercontent.com/logos-co/node-configs/refs/heads/master/storage_config_test.json .
-
-# Run
-CMD ["./logos/bin/logoscore", "-m", "./modules", "--load-modules", "waku_module,storage_module", "-c", "waku_module.initWaku(@waku_config.json)", "-c", "waku_module.startWaku()", "-c", "storage_module.init(@storage_config_test.json)", "-c", "storage_module.start()", "-c", "storage_module.importFiles('/tmp/storage_files')"]
+CMD ["logoscore", "-D", "-m", "/home/ubuntu/modules"]
