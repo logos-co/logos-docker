@@ -3,7 +3,7 @@ FROM nixos/nix:2.34.1 AS builder
 RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
 WORKDIR /app
 
-RUN nix build 'github:logos-co/logos-logoscore-cli/c24e58eb8ddf817f5998ca4ead7a994e2a732cc8#cli-appimage' --out-link ./logoscore --refresh
+RUN nix build 'github:logos-co/logos-logoscore-cli/454e0696e9417acaac2c0b6dc1f209b5838c7635#cli-appimage' --out-link ./logoscore --refresh
 RUN nix build 'github:logos-co/logos-package-manager/a59f14eb1045df4364d8ce795498ad2e0b323e1e#cli-appimage' --out-link ./package-manager --refresh
 RUN nix build 'github:logos-co/logos-package-downloader/9f9531b82493b01c3ede0b6b5be04a7422fc6a6e#cli-appimage' --out-link ./package-downloader --refresh
 
