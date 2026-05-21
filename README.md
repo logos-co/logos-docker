@@ -1,17 +1,24 @@
 # logos-docker
 
-```bash
-docker build -t logos https://github.com/logos-co/logos-docker.git && docker run logos
-```
+OCI container image for Logos, built deterministically with Nix.
 
-or, from a local checkout:
+## Build and run
 
 ```bash
-docker build -t logos .
-docker run logos
+nix build github:logos-co/logos-docker
+docker load < result
+docker run logos:latest
 ```
 
-The default `CMD` is `logoscore -D -m /home/ubuntu/modules`.
+Or, from a local checkout:
+
+```bash
+nix build
+docker load < result
+docker run logos:latest
+```
+
+The default `CMD` is `logoscore -D -m /modules`.
 
 ## What's inside
 
@@ -21,20 +28,38 @@ Three CLIs are installed and reachable on `$PATH`:
 - `lgpm` — Logos package manager
 - `lgpd` — Logos package downloader
 
-The image ships with the delivery, storage, and blockchain modules pre-installed under `/home/ubuntu/modules`.
+The image ships with the delivery, storage, and blockchain modules pre-installed under `/modules`.
 
-## Runtime user and layout
+## Image layout
 
-The container runs as the unprivileged `ubuntu` user. `/app` is root-owned and holds the extracted binaries; everything writable at runtime lives elsewhere:
-
-- `/home/ubuntu/packages/` — downloaded `.lgx` packages
-- `/home/ubuntu/modules/` — installed modules (passed to `logoscore` via `-m`)
-- `/etc/logos/blockchain/` — blockchain state written at runtime
+```
+/app/logos/bin/   — CLI binaries (logoscore, lgpm, lgpd)
+/app/logos/lib/   — bundled shared libraries
+/modules/         — installed module plugins
+/etc/logos/blockchain/ — blockchain state (volume mount point)
+```
 
 ## Persisting blockchain state
 
 Mount a named volume on `/etc/logos/blockchain` to keep state across container restarts:
 
 ```bash
-docker run -v logos-blockchain:/etc/logos/blockchain logos
+docker run -v logos-blockchain:/etc/logos/blockchain logos:latest
+```
+
+## How it works
+
+The image is built entirely within Nix using `dockerTools.buildLayeredImage`. Each CLI
+tool is included as a self-contained directory bundle (`#cli-bundle-dir` output), and
+modules are pre-installed via `#install-portable` outputs. No Dockerfile, no AppImage
+extraction, no runtime downloads during build.
+
+## Updating pinned versions
+
+Edit `flake.nix` to update the pinned revisions of `logos-logoscore-cli`,
+`logos-package-manager`, `logos-package-downloader`, and the module repos. Then run:
+
+```bash
+nix flake update
+nix build
 ```
