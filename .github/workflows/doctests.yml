@@ -8,6 +8,22 @@ name: Doc-Test
 #
 # Linux only: the doc-test builds and runs a Docker image, and GitHub's macOS
 # runners have no Docker daemon.
+#
+# ──────────────────────────────────────────────────────────────────────────────
+# One-time setup for the published report links to work:
+#
+#   Repo Settings → Pages → "Build and deployment" → Source: "Deploy from a
+#   branch", Branch: `gh-pages` / `(root)`. (The publish-report job creates the
+#   gh-pages branch on its first run; Pages just needs to be pointed at it.)
+#
+# Each run publishes the two-column HTML report to:
+#   https://<owner>.github.io/<repo>/pr-<N>/     (pull requests)
+#   https://<owner>.github.io/<repo>/main/       (pushes to master/main)
+# and, for PRs, posts/updates a comment with the link.
+#
+# Fork PRs get a read-only GITHUB_TOKEN, so the Pages push and PR comment are
+# skipped for them — the downloadable artifact is still produced.
+# ──────────────────────────────────────────────────────────────────────────────
 
 on:
   pull_request:
@@ -90,3 +106,85 @@ jobs:
       - name: Tear down
         if: always()
         run: docker rm -f logos-doctest >/dev/null 2>&1 || true
+
+  publish-report:
+    name: Publish report to GitHub Pages
+    needs: doctest
+    # Run even when the doc-test fails — a failing run is exactly when you want to
+    # open the report. Skip on forks, where GITHUB_TOKEN can't push or comment.
+    if: ${{ always() && github.event.pull_request.head.repo.fork != true }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write          # push to the gh-pages branch
+      pull-requests: write      # post/update the PR comment
+
+    # Serialize Pages deploys across all runs so concurrent PRs don't race on the
+    # gh-pages branch. Not cancel-in-progress: a queued publish should still run.
+    concurrency:
+      group: gh-pages-publish
+      cancel-in-progress: false
+
+    steps:
+      - name: Download report
+        continue-on-error: true   # a cancelled doc-test may leave no artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: openmetrics-doctest-report
+          path: report
+
+      - name: Arrange site directory
+        id: arrange
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="pr-${{ github.event.pull_request.number }}"
+          else
+            BASE="main"
+          fi
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+
+          mkdir -p "site/$BASE"
+          if [ -f report/index.html ]; then
+            cp report/index.html "site/$BASE/index.html"
+          else
+            echo "<!doctype html><meta charset=utf-8><title>No report</title><h1>No report produced</h1>" > "site/$BASE/index.html"
+          fi
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          keep_files: true
+          commit_message: "Publish openmetrics doc-test report for ${{ steps.arrange.outputs.base }} (${{ github.sha }})"
+
+      - name: Comment on PR with report link
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const base = "${{ steps.arrange.outputs.base }}";
+            const { owner, repo } = context.repo;
+            const url = `https://${owner}.github.io/${repo}/${base}/`;
+            const marker = "<!-- openmetrics-doctest-report-link -->";
+            const body =
+              `${marker}\n` +
+              `### 📊 openmetrics doc-test report\n\n` +
+              `The image built from this commit, run end-to-end (build → load ` +
+              `modules → init openmetrics → scrape \`/metrics\`), rendered ` +
+              `alongside the commands actually run and their output (updated each ` +
+              `run, commit \`${context.sha.slice(0, 7)}\`):\n\n` +
+              `- [View report](${url})\n\n` +
+              `_Pages can take a minute to update after the run finishes._`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner, repo, issue_number: context.issue.number, per_page: 100,
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number: context.issue.number, body });
+            }
