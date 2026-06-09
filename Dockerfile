@@ -3,9 +3,9 @@ FROM nixos/nix:2.34.1 AS builder
 RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
 WORKDIR /app
 
-RUN nix build 'github:logos-co/logos-logoscore-cli/454e0696e9417acaac2c0b6dc1f209b5838c7635#cli-appimage' --out-link ./logoscore --refresh
-RUN nix build 'github:logos-co/logos-package-manager/a59f14eb1045df4364d8ce795498ad2e0b323e1e#cli-appimage' --out-link ./package-manager --refresh
-RUN nix build 'github:logos-co/logos-package-downloader/9f9531b82493b01c3ede0b6b5be04a7422fc6a6e#cli-appimage' --out-link ./package-downloader --refresh
+RUN nix build 'github:logos-co/logos-logoscore-cli/ab6365eae7920ebf20b16f91b06295be55d55821#cli-appimage' --out-link ./logoscore --refresh
+RUN nix build 'github:logos-co/logos-package-manager/2b4b72087154dd4d6f691ac2527e06e0dadaef4d#cli-appimage' --out-link ./package-manager --refresh
+RUN nix build 'github:logos-co/logos-package-downloader/172a518450f74da820232a51cc31dd6af8d190a7#cli-appimage' --out-link ./package-downloader --refresh
 
 RUN mkdir -p /app-final/logos \
     && cp -rL ./logoscore/* /app-final/logos/ \
@@ -27,17 +27,18 @@ RUN ln -s /app/logos/logoscore/AppRun /bin/logoscore \
     && ln -s /app/logos/lgpm/AppRun /bin/lgpm \
     && ln -s /app/logos/lgpd/AppRun /bin/lgpd
 
-RUN mkdir -p /etc/logos/blockchain && chown -R ubuntu:ubuntu /etc/logos
+RUN mkdir -p /etc/logos/blockchain /etc/logos/persistence && chown -R ubuntu:ubuntu /etc/logos
 
 USER ubuntu
 WORKDIR /home/ubuntu
 
 RUN mkdir packages \
-    && lgpd download logos-delivery-module --release build-20260422-1bfdb89-84 --output ./packages \
-    && lgpd download logos-storage-module --release build-20260422-1bfdb89-84 --output ./packages \
-    && lgpd download logos-blockchain-module --release build-20260422-1bfdb89-84 --output ./packages
+    && lgpd download delivery_module --version 1.1.0 --output ./packages \
+    && lgpd download storage_module --version 1.0.0 --output ./packages \
+    && lgpd download liblogos_blockchain_module --version 1.0.0 --output ./packages \
+    && lgpd download openmetrics --version 0.1.0 --output ./packages
 
 RUN mkdir modules \
     && lgpm install --dir ./packages --modules-dir ./modules
 
-CMD ["logoscore", "-D", "-m", "/home/ubuntu/modules"]
+CMD ["logoscore", "-D", "-m", "/home/ubuntu/modules", "--persistence-path", "/etc/logos/persistence"]
