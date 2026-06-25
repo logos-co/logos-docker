@@ -43,6 +43,26 @@ pipeline {
       description: 'URL of the Docker Registry',
       defaultValue: params.DOCKER_REGISTRY_URL ?: 'https://harbor.status.im'
     )
+string(
+      name: 'DELIVERY_VERSION',
+      description: 'Version of delivery module.',
+      defaultValue: '0.1.3'
+    )
+    string(
+      name: 'STORAGE_VERSION',
+      description: 'Version of storage module.',
+      defaultValue: '1.2.0'
+    )
+    string(
+      name: 'BLOCKCHAIN_VERSION',
+      description: 'Version of blockchain module.',
+      defaultValue: '0.2.0'
+    )
+    string(
+      name: 'OPENMETRICS_VERSION',
+      description: 'Version of openmetrics module.',
+      defaultValue: '0.1.0'
+    )
   }
 
   stages {
@@ -52,6 +72,10 @@ pipeline {
           "${params.IMAGE_NAME}:${params.IMAGE_TAG ?: env.GIT_COMMIT.take(8)}",
           "--label=build='${env.BUILD_URL}' " +
           "--label=commit='${git.commit()}' " +
+          "--build-arg DELIVERY_VERSION='${params.DELIVERY_VERSION}' " +
+          "--build-arg STORAGE_VERSION='${params.STORAGE_VERSION}' " +
+          "--build-arg BLOCKCHAIN_VERSION='${params.BLOCKCHAIN_VERSION}' " +
+          "--build-arg OPENMETRICS_VERSION='${params.OPENMETRICS_VERSION}' " +
           "."
         )
       } }
