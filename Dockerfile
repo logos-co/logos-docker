@@ -27,18 +27,25 @@ RUN ln -s /app/logos/logoscore/AppRun /bin/logoscore \
     && ln -s /app/logos/lgpm/AppRun /bin/lgpm \
     && ln -s /app/logos/lgpd/AppRun /bin/lgpd
 
-RUN mkdir -p /etc/logos/blockchain /etc/logos/persistence && chown -R ubuntu:ubuntu /etc/logos
+RUN mkdir -p /var/lib/logos/blockchain /var/lib/logos/config /var/lib/logos/persistence \
+    && usermod -u 10000 ubuntu && groupmod -g 10000 ubuntu \
+    && chown -R ubuntu:ubuntu /var/lib/logos /home/ubuntu
 
 USER ubuntu
 WORKDIR /home/ubuntu
 
+ARG DELIVERY_VERSION
+ARG STORAGE_VERSION
+ARG BLOCKCHAIN_VERSION
+ARG OPENMETRICS_VERSION
+
 RUN mkdir packages \
-    && lgpd download delivery_module --version 1.1.0 --output ./packages \
-    && lgpd download storage_module --version 1.0.0 --output ./packages \
-    && lgpd download liblogos_blockchain_module --version 1.0.0 --output ./packages \
-    && lgpd download openmetrics --version 0.1.0 --output ./packages
+    && lgpd download delivery_module --version ${DELIVERY_VERSION} --output ./packages \
+    && lgpd download storage_module --version ${STORAGE_VERSION} --output ./packages \
+    && lgpd download blockchain_module --version ${BLOCKCHAIN_VERSION} --output ./packages \
+    && lgpd download openmetrics --version ${OPENMETRICS_VERSION} --output ./packages
 
 RUN mkdir modules \
     && lgpm install --dir ./packages --modules-dir ./modules
 
-CMD ["logoscore", "-D", "-m", "/home/ubuntu/modules", "--persistence-path", "/etc/logos/persistence"]
+CMD ["logoscore", "-D", "-m", "./modules", "--config-dir", "/var/lib/logos/config", "--persistence-path", "/var/lib/logos/persistence"]
