@@ -3,9 +3,9 @@ FROM nixos/nix:2.34.1 AS builder
 RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
 WORKDIR /app
 
-RUN nix build 'github:logos-co/logos-logoscore-cli/ab6365eae7920ebf20b16f91b06295be55d55821#cli-appimage' --out-link ./logoscore --refresh
-RUN nix build 'github:logos-co/logos-package-manager/2b4b72087154dd4d6f691ac2527e06e0dadaef4d#cli-appimage' --out-link ./package-manager --refresh
-RUN nix build 'github:logos-co/logos-package-downloader/172a518450f74da820232a51cc31dd6af8d190a7#cli-appimage' --out-link ./package-downloader --refresh
+RUN nix build 'github:logos-co/logos-logoscore-cli/8720885dd821cd63eb1da00c842328cbfd1fe5fa#cli-appimage' --out-link ./logoscore --refresh
+RUN nix build 'github:logos-co/logos-package-manager/202af6fa0f0f4493bc59c8a609dff9326f78a18d#cli-appimage' --out-link ./package-manager --refresh
+RUN nix build 'github:logos-co/logos-package-downloader/02503323b46ec35148ad00cd636d46ac8f2506b5#cli-appimage' --out-link ./package-downloader --refresh
 
 RUN mkdir -p /app-final/logos \
     && cp -rL ./logoscore/* /app-final/logos/ \
@@ -40,9 +40,9 @@ ARG BLOCKCHAIN_VERSION
 ARG OPENMETRICS_VERSION
 
 RUN mkdir packages \
-    && lgpd download delivery_module --version ${DELIVERY_VERSION} --output ./packages \
-    && lgpd download storage_module --version ${STORAGE_VERSION} --output ./packages \
-    && lgpd download blockchain_module --version ${BLOCKCHAIN_VERSION} --output ./packages \
+    && if [ -n "${DELIVERY_VERSION}" ]; then lgpd download delivery_module --version ${DELIVERY_VERSION} --output ./packages; fi \
+    && if [ -n "${STORAGE_VERSION}" ]; then lgpd download storage_module --version ${STORAGE_VERSION} --output ./packages; fi \
+    && if [ -n "${BLOCKCHAIN_VERSION}" ]; then lgpd download blockchain_module --version ${BLOCKCHAIN_VERSION} --output ./packages; fi \
     && lgpd download openmetrics --version ${OPENMETRICS_VERSION} --output ./packages
 
 RUN mkdir modules \

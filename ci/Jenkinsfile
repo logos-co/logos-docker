@@ -23,66 +23,84 @@ pipeline {
   }
 
   parameters {
-    string(
-      name: 'IMAGE_TAG',
-      description: 'Name of Docker tag to push.',
-      defaultValue: getDefaultImageTag()
+    choice(
+      name: 'FLEET',
+      description: 'Target fleet.',
+      choices: ['dev', 'test']
     )
     string(
-      name: 'IMAGE_NAME',
-      description: 'Name of Docker image to push.',
-      defaultValue: params.IMAGE_NAME ?: 'harbor.status.im/logos-co/logos-node',
-    )
-    string(
-      name: 'DOCKER_CRED',
-      description: 'Name of Docker Registry credential.',
-      defaultValue: params.DOCKER_CRED ?: 'harbor-logos-co-logos-node',
-    )
-    string(
-      name: 'DOCKER_REGISTRY_URL',
-      description: 'URL of the Docker Registry',
-      defaultValue: params.DOCKER_REGISTRY_URL ?: 'https://harbor.status.im'
-    )
-string(
       name: 'DELIVERY_VERSION',
-      description: 'Version of delivery module.',
+      description: 'Delivery module version. Leave empty to exclude.',
       defaultValue: '0.1.3'
     )
     string(
       name: 'STORAGE_VERSION',
-      description: 'Version of storage module.',
+      description: 'Storage module version. Leave empty to exclude.',
       defaultValue: '1.2.0'
     )
     string(
       name: 'BLOCKCHAIN_VERSION',
-      description: 'Version of blockchain module.',
+      description: 'Blockchain module version. Leave empty to exclude.',
       defaultValue: '0.2.0'
     )
     string(
       name: 'OPENMETRICS_VERSION',
-      description: 'Version of openmetrics module.',
+      description: 'Openmetrics module version. Leave empty to exclude.',
       defaultValue: '0.1.0'
+    )
+    string(
+      name: 'IMAGE_NAME',
+      description: 'Name of Docker image to push.',
+      defaultValue: 'harbor.status.im/logos-co/logos-node'
+    )
+    string(
+      name: 'DOCKER_CRED',
+      description: 'Name of Docker Registry credential.',
+      defaultValue: 'harbor-logos-co-logos-node'
+    )
+    string(
+      name: 'DOCKER_REGISTRY_URL',
+      description: 'URL of the Docker Registry',
+      defaultValue: 'https://harbor.status.im'
     )
   }
 
   stages {
     stage('Build') {
       steps { script {
+        def parts = []
+        def buildArgs = "--label=build='${env.BUILD_URL}' --label=commit='${git.commit()}' "
+
+        if (params.DELIVERY_VERSION?.trim()) {
+          parts.add("d${params.DELIVERY_VERSION}")
+          buildArgs += "--build-arg DELIVERY_VERSION='${params.DELIVERY_VERSION}' "
+          buildArgs += "--label=delivery='${params.DELIVERY_VERSION}' "
+        }
+        if (params.STORAGE_VERSION?.trim()) {
+          parts.add("s${params.STORAGE_VERSION}")
+          buildArgs += "--build-arg STORAGE_VERSION='${params.STORAGE_VERSION}' "
+          buildArgs += "--label=storage='${params.STORAGE_VERSION}' "
+        }
+        if (params.BLOCKCHAIN_VERSION?.trim()) {
+          parts.add("b${params.BLOCKCHAIN_VERSION}")
+          buildArgs += "--build-arg BLOCKCHAIN_VERSION='${params.BLOCKCHAIN_VERSION}' "
+          buildArgs += "--label=blockchain='${params.BLOCKCHAIN_VERSION}' "
+        }
+        if (params.OPENMETRICS_VERSION?.trim()) {
+          buildArgs += "--build-arg OPENMETRICS_VERSION='${params.OPENMETRICS_VERSION}' "
+        }
+
+        def tag = "${params.FLEET}-${parts.join('-')}"
+
         image = docker.build(
-          "${params.IMAGE_NAME}:${params.IMAGE_TAG ?: env.GIT_COMMIT.take(8)}",
-          "--label=build='${env.BUILD_URL}' " +
-          "--label=commit='${git.commit()}' " +
-          "--build-arg DELIVERY_VERSION='${params.DELIVERY_VERSION}' " +
-          "--build-arg STORAGE_VERSION='${params.STORAGE_VERSION}' " +
-          "--build-arg BLOCKCHAIN_VERSION='${params.BLOCKCHAIN_VERSION}' " +
-          "--build-arg OPENMETRICS_VERSION='${params.OPENMETRICS_VERSION}' " +
-          "."
+          "${params.IMAGE_NAME}:${tag}",
+          "${buildArgs} ."
         )
+        env.IMAGE_TAG = tag
       } }
     }
 
     stage('Push') {
-      when { expression { params.IMAGE_TAG != '' } }
       steps { script {
         withDockerRegistry([
           credentialsId: params.DOCKER_CRED, url: params.DOCKER_REGISTRY_URL
@@ -95,13 +113,5 @@ string(
 
   post {
     always { sh 'docker image prune -f' }
-  }
-}
-
-def getDefaultImageTag() {
-  switch (env.JOB_BASE_NAME) {
-    case 'docker-latest':  return 'latest'
-    case 'docker-release': return 'stable'
-    default:               return env.JOB_BASE_NAME
   }
 }
