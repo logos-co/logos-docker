@@ -43,16 +43,16 @@ ARG LEZ_RLN_VERSION
 ARG LEZ_CORE_VERSION
 
 ENV LGPD_CONFIG=/home/ubuntu/repositories.json
-RUN lgpd --config ${LGPD_CONFIG} repo add \
-        https://github.com/logos-co/logos-rln-modules/releases/download/index/logos-repo.json
+ENV RLN_REPO=https://github.com/logos-co/logos-rln-modules/releases/download/index/logos-repo.json
+RUN lgpd --config ${LGPD_CONFIG} repo add ${RLN_REPO}
 
 RUN mkdir packages \
     && if [ -n "${DELIVERY_VERSION}" ]; then lgpd download delivery_module --version ${DELIVERY_VERSION} --output ./packages; fi \
     && if [ -n "${STORAGE_VERSION}" ]; then lgpd download storage_module --version ${STORAGE_VERSION} --output ./packages; fi \
     && if [ -n "${BLOCKCHAIN_VERSION}" ]; then lgpd download blockchain_module --version ${BLOCKCHAIN_VERSION} --output ./packages; fi \
-    && if [ -n "${RLN_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} download liblogos_rln_module --version ${RLN_VERSION} --output ./packages; fi \
-    && if [ -n "${LEZ_RLN_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} download liblogos_lez_rln_module --version ${LEZ_RLN_VERSION} --output ./packages; fi \
-    && if [ -n "${LEZ_CORE_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} download lez_core --version ${LEZ_CORE_VERSION} --output ./packages; fi \
+    && if [ -n "${RLN_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} --repo ${RLN_REPO} download liblogos_rln_module --version ${RLN_VERSION} --output ./packages; fi \
+    && if [ -n "${LEZ_RLN_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} --repo ${RLN_REPO} download liblogos_lez_rln_module --version ${LEZ_RLN_VERSION} --output ./packages; fi \
+    && if [ -n "${LEZ_CORE_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} --repo ${RLN_REPO} download lez_core --version ${LEZ_CORE_VERSION} --output ./packages; fi \
     && lgpd download openmetrics --version ${OPENMETRICS_VERSION} --output ./packages
 
 RUN mkdir modules \
