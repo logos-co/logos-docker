@@ -44,6 +44,23 @@ Each module version is a build arg — `DELIVERY_VERSION`, `STORAGE_VERSION`,
 `BLOCKCHAIN_VERSION`, `OPENMETRICS_VERSION`, `RLN_VERSION`, `LEZ_RLN_VERSION`,
 `LEZ_CORE_VERSION`. Leave one empty to exclude that module.
 
+## Building against another catalog
+
+`MODULES_REPO` and `RLN_REPO` select where `delivery_module` and the RLN modules
+come from. Point either at
+[`logos-modules-dev`](https://github.com/logos-co/logos-modules-dev), which
+publishes one build per commit, to get a continuous build instead of a release:
+
+```bash
+docker build \
+  --build-arg MODULES_REPO=https://raw.githubusercontent.com/logos-co/logos-modules-dev/refs/heads/main/logos-repo.json \
+  --build-arg RLN_REPO=https://raw.githubusercontent.com/logos-co/logos-modules-dev/refs/heads/main/logos-repo.json \
+  -t logos .
+```
+
+`storage_module`, `blockchain_module` and `openmetrics` are only published to
+`logos-modules-release` and always come from there.
+
 ## Runtime user and layout
 
 The container runs as the unprivileged `ubuntu` user. `/app` is root-owned and holds the extracted binaries; everything writable at runtime lives elsewhere:
