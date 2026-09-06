@@ -64,6 +64,16 @@ pipeline {
       defaultValue: '0.1.0'
     )
     string(
+      name: 'MODULES_REPO',
+      description: 'Module catalog logos-repo.json. Leave empty for logos-modules-release.',
+      defaultValue: ''
+    )
+    string(
+      name: 'RLN_REPO',
+      description: 'RLN module catalog. Leave empty for logos-rln-modules.',
+      defaultValue: ''
+    )
+    string(
       name: 'IMAGE_NAME',
       description: 'Name of Docker image to push.',
       defaultValue: 'harbor.status.im/logos-co/logos-node'
@@ -116,6 +126,12 @@ pipeline {
         }
         if (params.OPENMETRICS_VERSION?.trim()) {
           buildArgs += "--build-arg OPENMETRICS_VERSION='${params.OPENMETRICS_VERSION}' "
+        }
+        if (params.MODULES_REPO?.trim()) {
+          buildArgs += "--build-arg MODULES_REPO='${params.MODULES_REPO}' "
+        }
+        if (params.RLN_REPO?.trim()) {
+          buildArgs += "--build-arg RLN_REPO='${params.RLN_REPO}' "
         }
 
         def tag = "${params.FLEET}-${parts.join('-')}"

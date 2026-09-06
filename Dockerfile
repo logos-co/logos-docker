@@ -42,18 +42,24 @@ ARG RLN_VERSION
 ARG LEZ_RLN_VERSION
 ARG LEZ_CORE_VERSION
 
+ARG MODULES_REPO=https://raw.githubusercontent.com/logos-co/logos-modules-release/refs/heads/main/logos-repo.json
+# Separate catalog until the RLN modules are published to logos-modules-release.
+ARG RLN_REPO=https://github.com/logos-co/logos-rln-modules/releases/download/index/logos-repo.json
+
 ENV LGPD_CONFIG=/home/ubuntu/repositories.json
-ENV RLN_REPO=https://github.com/logos-co/logos-rln-modules/releases/download/index/logos-repo.json
-RUN lgpd --config ${LGPD_CONFIG} repo add ${RLN_REPO}
+RUN for repo in "${MODULES_REPO}" "${RLN_REPO}"; do \
+        lgpd --config ${LGPD_CONFIG} --json repo list | grep -qF "${repo}" \
+            || lgpd --config ${LGPD_CONFIG} repo add "${repo}"; \
+    done
 
 RUN mkdir packages \
-    && if [ -n "${DELIVERY_VERSION}" ]; then lgpd download delivery_module --version ${DELIVERY_VERSION} --output ./packages; fi \
-    && if [ -n "${STORAGE_VERSION}" ]; then lgpd download storage_module --version ${STORAGE_VERSION} --output ./packages; fi \
-    && if [ -n "${BLOCKCHAIN_VERSION}" ]; then lgpd download blockchain_module --version ${BLOCKCHAIN_VERSION} --output ./packages; fi \
+    && if [ -n "${DELIVERY_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} --repo ${MODULES_REPO} download delivery_module --version ${DELIVERY_VERSION} --output ./packages; fi \
+    && if [ -n "${STORAGE_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} --repo ${MODULES_REPO} download storage_module --version ${STORAGE_VERSION} --output ./packages; fi \
+    && if [ -n "${BLOCKCHAIN_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} --repo ${MODULES_REPO} download blockchain_module --version ${BLOCKCHAIN_VERSION} --output ./packages; fi \
     && if [ -n "${RLN_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} --repo ${RLN_REPO} download liblogos_rln_module --version ${RLN_VERSION} --output ./packages; fi \
     && if [ -n "${LEZ_RLN_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} --repo ${RLN_REPO} download liblogos_lez_rln_module --version ${LEZ_RLN_VERSION} --output ./packages; fi \
     && if [ -n "${LEZ_CORE_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} --repo ${RLN_REPO} download lez_core --version ${LEZ_CORE_VERSION} --output ./packages; fi \
-    && lgpd download openmetrics --version ${OPENMETRICS_VERSION} --output ./packages
+    && lgpd --config ${LGPD_CONFIG} --repo ${MODULES_REPO} download openmetrics --version ${OPENMETRICS_VERSION} --output ./packages
 
 RUN mkdir modules \
     && lgpm install --dir ./packages --modules-dir ./modules
