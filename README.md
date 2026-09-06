@@ -25,6 +25,25 @@ The image ships with the delivery, storage, and blockchain modules plus the
 [`openmetrics`](https://github.com/logos-co/openmetrics-module) scraper
 pre-installed under `/home/ubuntu/modules`.
 
+It also ships [`liblogos_rln_module`](https://github.com/logos-co/logos-rln-modules)
+(RLN membership management) together with its dependencies
+`liblogos_lez_rln_module` and `lez_core`. Those live in a separate catalog, which
+the image registers in `/home/ubuntu/repositories.json`:
+
+```bash
+lgpd --config /home/ubuntu/repositories.json repo list
+```
+
+Loading it pulls the two dependencies in automatically:
+
+```bash
+docker exec logos logoscore load-module liblogos_rln_module
+```
+
+Each module version is a build arg — `DELIVERY_VERSION`, `STORAGE_VERSION`,
+`BLOCKCHAIN_VERSION`, `OPENMETRICS_VERSION`, `RLN_VERSION`, `LEZ_RLN_VERSION`,
+`LEZ_CORE_VERSION`. Leave one empty to exclude that module.
+
 ## Runtime user and layout
 
 The container runs as the unprivileged `ubuntu` user. `/app` is root-owned and holds the extracted binaries; everything writable at runtime lives elsewhere:
