@@ -44,6 +44,21 @@ pipeline {
       defaultValue: '0.2.0'
     )
     string(
+      name: 'RLN_VERSION',
+      description: 'RLN module version. Leave empty to exclude.',
+      defaultValue: '0.4.0'
+    )
+    string(
+      name: 'LEZ_RLN_VERSION',
+      description: 'LEZ RLN module version (required by the RLN module).',
+      defaultValue: '2.0.0'
+    )
+    string(
+      name: 'LEZ_CORE_VERSION',
+      description: 'LEZ core version (required by the LEZ RLN module).',
+      defaultValue: '0.4.1'
+    )
+    string(
       name: 'OPENMETRICS_VERSION',
       description: 'Openmetrics module version. Leave empty to exclude.',
       defaultValue: '0.1.0'
@@ -85,6 +100,19 @@ pipeline {
           parts.add("b${params.BLOCKCHAIN_VERSION}")
           buildArgs += "--build-arg BLOCKCHAIN_VERSION='${params.BLOCKCHAIN_VERSION}' "
           buildArgs += "--label=blockchain='${params.BLOCKCHAIN_VERSION}' "
+        }
+        if (params.RLN_VERSION?.trim()) {
+          parts.add("r${params.RLN_VERSION}")
+          buildArgs += "--build-arg RLN_VERSION='${params.RLN_VERSION}' "
+          buildArgs += "--label=rln='${params.RLN_VERSION}' "
+        }
+        if (params.LEZ_RLN_VERSION?.trim()) {
+          buildArgs += "--build-arg LEZ_RLN_VERSION='${params.LEZ_RLN_VERSION}' "
+          buildArgs += "--label=lez-rln='${params.LEZ_RLN_VERSION}' "
+        }
+        if (params.LEZ_CORE_VERSION?.trim()) {
+          buildArgs += "--build-arg LEZ_CORE_VERSION='${params.LEZ_CORE_VERSION}' "
+          buildArgs += "--label=lez-core='${params.LEZ_CORE_VERSION}' "
         }
         if (params.OPENMETRICS_VERSION?.trim()) {
           buildArgs += "--build-arg OPENMETRICS_VERSION='${params.OPENMETRICS_VERSION}' "
