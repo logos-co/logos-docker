@@ -187,8 +187,8 @@ sections:
       | Step | Command | What it proves |
       | ---- | ------- | -------------- |
       | Build & run | `docker build` / `docker run -d -p 9090:9090` | the image builds and the daemon comes up with the metrics port published |
-      | Load | `logoscore load-module <name>` | the bundled modules load into the running daemon |
-      | Initialize | `logoscore call openmetrics start '{…}'` | `openmetrics` stands up its HTTP server on the published port |
+      | Load | `logoscore --config-dir /var/lib/logos/config load-module <name>` | the bundled modules load into the running daemon |
+      | Initialize | `logoscore --config-dir /var/lib/logos/config call openmetrics start '{…}'` | `openmetrics` stands up its HTTP server on the published port |
       | Scrape | `curl http://localhost:9090/metrics` | the endpoint is reachable from outside the container and serves valid OpenMetrics |
 
       The `openmetrics` endpoint is now reachable from the host on `:9090`. Point a
