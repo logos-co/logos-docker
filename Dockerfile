@@ -34,10 +34,10 @@ RUN mkdir -p /var/lib/logos/blockchain /var/lib/logos/config /var/lib/logos/pers
 USER ubuntu
 WORKDIR /home/ubuntu
 
-ARG DELIVERY_VERSION
-ARG STORAGE_VERSION
-ARG BLOCKCHAIN_VERSION
-ARG OPENMETRICS_VERSION
+ARG DELIVERY_VERSION=0.2.1
+ARG STORAGE_VERSION=2.1.3
+ARG BLOCKCHAIN_VERSION=0.2.4
+ARG OPENMETRICS_VERSION=0.1.1
 ARG RLN_VERSION
 ARG LEZ_RLN_VERSION
 ARG LEZ_CORE_VERSION
@@ -59,7 +59,7 @@ RUN mkdir packages \
     && if [ -n "${RLN_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} --repo ${RLN_REPO} download liblogos_rln_module --version ${RLN_VERSION} --output ./packages; fi \
     && if [ -n "${LEZ_RLN_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} --repo ${RLN_REPO} download liblogos_lez_rln_module --version ${LEZ_RLN_VERSION} --output ./packages; fi \
     && if [ -n "${LEZ_CORE_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} --repo ${RLN_REPO} download lez_core --version ${LEZ_CORE_VERSION} --output ./packages; fi \
-    && lgpd --config ${LGPD_CONFIG} --repo ${MODULES_REPO} download openmetrics --version ${OPENMETRICS_VERSION} --output ./packages
+    && if [ -n "${OPENMETRICS_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} --repo ${MODULES_REPO} download openmetrics --version ${OPENMETRICS_VERSION} --output ./packages; fi
 
 RUN mkdir modules \
     && lgpm install --dir ./packages --modules-dir ./modules
