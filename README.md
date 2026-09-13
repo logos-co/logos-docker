@@ -11,7 +11,7 @@ docker build -t logos .
 docker run logos
 ```
 
-The default `CMD` is `logoscore -D -m /home/ubuntu/modules --persistence-path /etc/logos/persistence`.
+The default `CMD` is `logoscore -D -m ./modules --config-dir /var/lib/logos/config --persistence-path /var/lib/logos/persistence`.
 
 ## What's inside
 
@@ -37,7 +37,7 @@ lgpd --config /home/ubuntu/repositories.json repo list
 Loading it pulls the two dependencies in automatically:
 
 ```bash
-docker exec logos logoscore load-module liblogos_rln_module
+docker exec logos logoscore --config-dir /var/lib/logos/config load-module liblogos_rln_module
 ```
 
 Each module version is a build arg — `DELIVERY_VERSION`, `STORAGE_VERSION`,
@@ -65,7 +65,7 @@ The container runs as the unprivileged `ubuntu` user. `/app` is root-owned and h
 - `/home/ubuntu/packages/` — downloaded `.lgx` packages
 - `/home/ubuntu/modules/` — installed modules (passed to `logoscore` via `-m`)
 - `/etc/logos/blockchain/` — blockchain state written at runtime
-- `/etc/logos/persistence/` — logoscore module instance persistence (passed via `--persistence-path`)
+- `/var/lib/logos/persistence/` — logoscore module instance persistence (passed via `--persistence-path`)
 
 ## Serving OpenMetrics
 
@@ -75,11 +75,11 @@ the port published, load the modules, then load and `start` `openmetrics`:
 
 ```bash
 docker run -d -p 9090:9090 --name logos logos
-docker exec logos logoscore load-module delivery_module
-docker exec logos logoscore load-module storage_module
-docker exec logos logoscore load-module liblogos_blockchain_module
-docker exec logos logoscore load-module openmetrics
-docker exec logos logoscore call openmetrics start '{"port":9090,"modules":["delivery_module","storage_module","liblogos_blockchain_module"]}'
+docker exec logos logoscore --config-dir /var/lib/logos/config load-module delivery_module
+docker exec logos logoscore --config-dir /var/lib/logos/config load-module storage_module
+docker exec logos logoscore --config-dir /var/lib/logos/config load-module blockchain_module
+docker exec logos logoscore --config-dir /var/lib/logos/config load-module openmetrics
+docker exec logos logoscore --config-dir /var/lib/logos/config call openmetrics start '{"port":9090,"modules":["delivery_module","storage_module","blockchain_module"]}'
 curl http://localhost:9090/metrics
 ```
 
@@ -93,12 +93,12 @@ For a complete, runnable walkthrough — build, run, load the modules, initializ
 Mount named volumes to keep state across container restarts:
 
 - `/etc/logos/blockchain` — blockchain state
-- `/etc/logos/persistence` — logoscore module instance data (`--persistence-path`)
+- `/var/lib/logos/persistence` — logoscore module instance data (`--persistence-path`)
 
 ```bash
 docker run \
   -v logos-blockchain:/etc/logos/blockchain \
-  -v logos-persistence:/etc/logos/persistence \
+  -v logos-persistence:/var/lib/logos/persistence \
   logos
 ```
 

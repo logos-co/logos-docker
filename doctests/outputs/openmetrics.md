@@ -3,7 +3,7 @@
 The `logos-docker` image bundles the three Logos CLIs (`logoscore`, `lgpm`,
 `lgpd`) and ships a set of modules pre-installed under
 `/home/ubuntu/modules` — `delivery_module`, `storage_module`,
-`liblogos_blockchain_module`, and the [`openmetrics`](https://github.com/logos-co/openmetrics-module)
+`blockchain_module`, and the [`openmetrics`](https://github.com/logos-co/openmetrics-module)
 scraper. The container's default `CMD` starts a `logoscore` daemon over that
 modules directory; everything else is done by talking to that daemon.
 
@@ -48,7 +48,7 @@ The image is built straight from this repo. The Dockerfile is a multi-stage
 build: a `nixos/nix` stage builds the three CLIs as AppImages, and an
 `ubuntu` stage extracts them, downloads the module packages with `lgpd`, and
 installs them with `lgpm`. The default `CMD` is
-`logoscore -D -m /home/ubuntu/modules --persistence-path /etc/logos/persistence`.
+`logoscore -D -m ./modules --config-dir /var/lib/logos/config --persistence-path /var/lib/logos/persistence`.
 
 ### 1.1 Build the image
 
@@ -83,7 +83,7 @@ sleep 5
 ### 1.3 Confirm the daemon is up
 
 ```bash
-docker exec logos logoscore status
+docker exec logos logoscore --config-dir /var/lib/logos/config status
 ```
 
 ---
@@ -103,9 +103,9 @@ docker exec logos lgpm --modules-dir /home/ubuntu/modules list
 ### 2.2 Load the bundled modules
 
 ```bash
-docker exec logos logoscore load-module delivery_module
-docker exec logos logoscore load-module storage_module
-docker exec logos logoscore load-module liblogos_blockchain_module
+docker exec logos logoscore --config-dir /var/lib/logos/config load-module delivery_module
+docker exec logos logoscore --config-dir /var/lib/logos/config load-module storage_module
+docker exec logos logoscore --config-dir /var/lib/logos/config load-module blockchain_module
 ```
 
 ---
@@ -119,7 +119,7 @@ a single argument so it reaches the module intact.
 ### 3.1 Load the openmetrics module
 
 ```bash
-docker exec logos logoscore load-module openmetrics
+docker exec logos logoscore --config-dir /var/lib/logos/config load-module openmetrics
 ```
 
 ### 3.2 Start the OpenMetrics server
@@ -128,7 +128,7 @@ Bind it to `9090` — the port we published — so the endpoint is reachable
 from the host. `start` returns `1` on success.
 
 ```bash
-docker exec logos logoscore call openmetrics start '{"port":9090,"modules":["delivery_module","storage_module","liblogos_blockchain_module"]}'
+docker exec logos logoscore --config-dir /var/lib/logos/config call openmetrics start '{"port":9090,"modules":["delivery_module","storage_module","blockchain_module"]}'
 ```
 
 ```bash
@@ -141,7 +141,7 @@ sleep 1
 it as an escaped string inside the `result` field.
 
 ```bash
-docker exec logos logoscore call openmetrics getInfo
+docker exec logos logoscore --config-dir /var/lib/logos/config call openmetrics getInfo
 ```
 
 ---
@@ -187,8 +187,8 @@ docker rm -f logos
 | Step | Command | What it proves |
 | ---- | ------- | -------------- |
 | Build & run | `docker build` / `docker run -d -p 9090:9090` | the image builds and the daemon comes up with the metrics port published |
-| Load | `logoscore load-module <name>` | the bundled modules load into the running daemon |
-| Initialize | `logoscore call openmetrics start '{…}'` | `openmetrics` stands up its HTTP server on the published port |
+| Load | `logoscore --config-dir /var/lib/logos/config load-module <name>` | the bundled modules load into the running daemon |
+| Initialize | `logoscore --config-dir /var/lib/logos/config call openmetrics start '{…}'` | `openmetrics` stands up its HTTP server on the published port |
 | Scrape | `curl http://localhost:9090/metrics` | the endpoint is reachable from outside the container and serves valid OpenMetrics |
 
 The `openmetrics` endpoint is now reachable from the host on `:9090`. Point a

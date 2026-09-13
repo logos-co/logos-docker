@@ -6,7 +6,7 @@ intro: |
   The `logos-docker` image bundles the three Logos CLIs (`logoscore`, `lgpm`,
   `lgpd`) and ships a set of modules pre-installed under
   `/home/ubuntu/modules` — `delivery_module`, `storage_module`,
-  `liblogos_blockchain_module`, and the [`openmetrics`](https://github.com/logos-co/openmetrics-module)
+  `blockchain_module`, and the [`openmetrics`](https://github.com/logos-co/openmetrics-module)
   scraper. The container's default `CMD` starts a `logoscore` daemon over that
   modules directory; everything else is done by talking to that daemon.
 
@@ -49,7 +49,7 @@ sections:
       build: a `nixos/nix` stage builds the three CLIs as AppImages, and an
       `ubuntu` stage extracts them, downloads the module packages with `lgpd`, and
       installs them with `lgpm`. The default `CMD` is
-      `logoscore -D -m /home/ubuntu/modules --persistence-path /etc/logos/persistence`.
+      `logoscore -D -m ./modules --config-dir /var/lib/logos/config --persistence-path /var/lib/logos/persistence`.
     steps:
       - title: "Build the image"
         text: |
@@ -78,8 +78,8 @@ sections:
       - run: "sleep 5"
 
       - title: "Confirm the daemon is up"
-        run: "docker exec logos-doctest logoscore status"
-        code_block: "docker exec logos logoscore status"
+        run: "docker exec logos-doctest logoscore --config-dir /var/lib/logos/config status"
+        code_block: "docker exec logos logoscore --config-dir /var/lib/logos/config status"
         expect_contains:
           - "running"
 
@@ -100,17 +100,17 @@ sections:
 
       - title: "Load the bundled modules"
         run: |
-          docker exec logos-doctest logoscore load-module delivery_module
-          docker exec logos-doctest logoscore load-module storage_module
-          docker exec logos-doctest logoscore load-module liblogos_blockchain_module
+          docker exec logos-doctest logoscore --config-dir /var/lib/logos/config load-module delivery_module
+          docker exec logos-doctest logoscore --config-dir /var/lib/logos/config load-module storage_module
+          docker exec logos-doctest logoscore --config-dir /var/lib/logos/config load-module blockchain_module
         code_block: |
-          docker exec logos logoscore load-module delivery_module
-          docker exec logos logoscore load-module storage_module
-          docker exec logos logoscore load-module liblogos_blockchain_module
+          docker exec logos logoscore --config-dir /var/lib/logos/config load-module delivery_module
+          docker exec logos logoscore --config-dir /var/lib/logos/config load-module storage_module
+          docker exec logos logoscore --config-dir /var/lib/logos/config load-module blockchain_module
         expect_contains:
           - "delivery_module"
           - "storage_module"
-          - "liblogos_blockchain_module"
+          - "blockchain_module"
 
   - title: "Initialize OpenMetrics"
     step: true
@@ -120,8 +120,8 @@ sections:
       a single argument so it reaches the module intact.
     steps:
       - title: "Load the openmetrics module"
-        run: "docker exec logos-doctest logoscore load-module openmetrics"
-        code_block: "docker exec logos logoscore load-module openmetrics"
+        run: "docker exec logos-doctest logoscore --config-dir /var/lib/logos/config load-module openmetrics"
+        code_block: "docker exec logos logoscore --config-dir /var/lib/logos/config load-module openmetrics"
         expect_contains:
           - "openmetrics"
 
@@ -130,9 +130,9 @@ sections:
           Bind it to `9090` — the port we published — so the endpoint is reachable
           from the host. `start` returns `1` on success.
         run: |
-          docker exec logos-doctest logoscore call openmetrics start '{"port":9090,"modules":["delivery_module","storage_module","liblogos_blockchain_module"]}'
+          docker exec logos-doctest logoscore --config-dir /var/lib/logos/config call openmetrics start '{"port":9090,"modules":["delivery_module","storage_module","blockchain_module"]}'
         code_block: |
-          docker exec logos logoscore call openmetrics start '{"port":9090,"modules":["delivery_module","storage_module","liblogos_blockchain_module"]}'
+          docker exec logos logoscore --config-dir /var/lib/logos/config call openmetrics start '{"port":9090,"modules":["delivery_module","storage_module","blockchain_module"]}'
         expect_contains:
           - '"result":1'
 
@@ -142,8 +142,8 @@ sections:
         text: |
           `getInfo()` returns its status as a JSON string, so `logoscore` delivers
           it as an escaped string inside the `result` field.
-        run: "docker exec logos-doctest logoscore call openmetrics getInfo"
-        code_block: "docker exec logos logoscore call openmetrics getInfo"
+        run: "docker exec logos-doctest logoscore --config-dir /var/lib/logos/config call openmetrics getInfo"
+        code_block: "docker exec logos logoscore --config-dir /var/lib/logos/config call openmetrics getInfo"
         expect_contains:
           - '\"running\":true'
           - '\"port\":9090'
@@ -187,8 +187,8 @@ sections:
       | Step | Command | What it proves |
       | ---- | ------- | -------------- |
       | Build & run | `docker build` / `docker run -d -p 9090:9090` | the image builds and the daemon comes up with the metrics port published |
-      | Load | `logoscore load-module <name>` | the bundled modules load into the running daemon |
-      | Initialize | `logoscore call openmetrics start '{…}'` | `openmetrics` stands up its HTTP server on the published port |
+      | Load | `logoscore --config-dir /var/lib/logos/config load-module <name>` | the bundled modules load into the running daemon |
+      | Initialize | `logoscore --config-dir /var/lib/logos/config call openmetrics start '{…}'` | `openmetrics` stands up its HTTP server on the published port |
       | Scrape | `curl http://localhost:9090/metrics` | the endpoint is reachable from outside the container and serves valid OpenMetrics |
 
       The `openmetrics` endpoint is now reachable from the host on `:9090`. Point a
