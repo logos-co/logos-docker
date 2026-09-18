@@ -96,19 +96,20 @@ pipeline {
         def parts = []
         def buildArgs = "--label=build='${env.BUILD_URL}' --label=commit='${git.commit()}' "
 
+        ['DELIVERY_VERSION', 'STORAGE_VERSION', 'BLOCKCHAIN_VERSION', 'OPENMETRICS_VERSION'].each {
+          buildArgs += "--build-arg ${it}='${params[it]?.trim() ?: ''}' "
+        }
+
         if (params.DELIVERY_VERSION?.trim()) {
           parts.add("d${params.DELIVERY_VERSION}")
-          buildArgs += "--build-arg DELIVERY_VERSION='${params.DELIVERY_VERSION}' "
           buildArgs += "--label=delivery='${params.DELIVERY_VERSION}' "
         }
         if (params.STORAGE_VERSION?.trim()) {
           parts.add("s${params.STORAGE_VERSION}")
-          buildArgs += "--build-arg STORAGE_VERSION='${params.STORAGE_VERSION}' "
           buildArgs += "--label=storage='${params.STORAGE_VERSION}' "
         }
         if (params.BLOCKCHAIN_VERSION?.trim()) {
           parts.add("b${params.BLOCKCHAIN_VERSION}")
-          buildArgs += "--build-arg BLOCKCHAIN_VERSION='${params.BLOCKCHAIN_VERSION}' "
           buildArgs += "--label=blockchain='${params.BLOCKCHAIN_VERSION}' "
         }
         if (params.RLN_VERSION?.trim()) {
@@ -123,9 +124,6 @@ pipeline {
         if (params.LEZ_CORE_VERSION?.trim()) {
           buildArgs += "--build-arg LEZ_CORE_VERSION='${params.LEZ_CORE_VERSION}' "
           buildArgs += "--label=lez-core='${params.LEZ_CORE_VERSION}' "
-        }
-        if (params.OPENMETRICS_VERSION?.trim()) {
-          buildArgs += "--build-arg OPENMETRICS_VERSION='${params.OPENMETRICS_VERSION}' "
         }
         if (params.MODULES_REPO?.trim()) {
           buildArgs += "--build-arg MODULES_REPO='${params.MODULES_REPO}' "
