@@ -1,5 +1,5 @@
 #!/usr/bin/env groovy
-library 'status-jenkins-lib@v1.9.41'
+library 'status-jenkins-lib@v1.9.52'
 
 pipeline {
   agent {
@@ -22,130 +22,83 @@ pipeline {
     ))
   }
 
+  environment {
+    IMAGE_NAME = 'harbor.status.im/logos-co/logos-node'
+    DOCKER_CRED = 'harbor-logos-co-logos-node'
+    DOCKER_REGISTRY_URL = 'https://harbor.status.im'
+  }
+
   parameters {
-    choice(
-      name: 'FLEET',
-      description: 'Target fleet.',
-      choices: ['dev', 'test']
-    )
     string(
       name: 'DELIVERY_VERSION',
       description: 'Delivery module version. Leave empty to exclude.',
-      defaultValue: '0.1.3'
+      defaultValue: lastParam('DELIVERY_VERSION', '0.3.0')
     )
     string(
       name: 'STORAGE_VERSION',
       description: 'Storage module version. Leave empty to exclude.',
-      defaultValue: '1.2.0'
+      defaultValue: lastParam('STORAGE_VERSION', '2.1.3')
     )
     string(
       name: 'BLOCKCHAIN_VERSION',
       description: 'Blockchain module version. Leave empty to exclude.',
-      defaultValue: '0.2.0'
+      defaultValue: lastParam('BLOCKCHAIN_VERSION', '0.2.4')
     )
     string(
       name: 'RLN_VERSION',
       description: 'RLN module version. Leave empty to exclude.',
-      defaultValue: '0.4.0'
+      defaultValue: lastParam('RLN_VERSION', '')
     )
     string(
       name: 'LEZ_RLN_VERSION',
-      description: 'LEZ RLN module version (required by the RLN module).',
-      defaultValue: '2.0.0'
+      description: 'LEZ RLN module version.',
+      defaultValue: lastParam('LEZ_RLN_VERSION', '')
     )
     string(
       name: 'LEZ_CORE_VERSION',
-      description: 'LEZ core version (required by the LEZ RLN module).',
-      defaultValue: '0.4.1'
+      description: 'LEZ core version.',
+      defaultValue: lastParam('LEZ_CORE_VERSION', '')
     )
     string(
       name: 'OPENMETRICS_VERSION',
       description: 'Openmetrics module version. Leave empty to exclude.',
-      defaultValue: '0.1.0'
+      defaultValue: lastParam('OPENMETRICS_VERSION', '0.1.1')
     )
     string(
       name: 'MODULES_REPO',
-      description: 'Module catalog logos-repo.json. Leave empty for logos-modules-release.',
+      description: 'Module catalog. Leave empty for default.',
       defaultValue: ''
     )
     string(
       name: 'RLN_REPO',
-      description: 'RLN module catalog. Leave empty for logos-rln-modules.',
+      description: 'RLN module catalog. Leave empty for default.',
       defaultValue: ''
-    )
-    string(
-      name: 'IMAGE_NAME',
-      description: 'Name of Docker image to push.',
-      defaultValue: 'harbor.status.im/logos-co/logos-node'
-    )
-    string(
-      name: 'DOCKER_CRED',
-      description: 'Name of Docker Registry credential.',
-      defaultValue: 'harbor-logos-co-logos-node'
-    )
-    string(
-      name: 'DOCKER_REGISTRY_URL',
-      description: 'URL of the Docker Registry',
-      defaultValue: 'https://harbor.status.im'
     )
   }
 
   stages {
     stage('Build') {
       steps { script {
-        def parts = []
-        def buildArgs = "--label=build='${env.BUILD_URL}' --label=commit='${git.commit()}' "
-
-        ['DELIVERY_VERSION', 'STORAGE_VERSION', 'BLOCKCHAIN_VERSION', 'OPENMETRICS_VERSION'].each {
-          buildArgs += "--build-arg ${it}='${params[it]?.trim() ?: ''}' "
-        }
-
-        if (params.DELIVERY_VERSION?.trim()) {
-          parts.add("d${params.DELIVERY_VERSION}")
-          buildArgs += "--label=delivery='${params.DELIVERY_VERSION}' "
-        }
-        if (params.STORAGE_VERSION?.trim()) {
-          parts.add("s${params.STORAGE_VERSION}")
-          buildArgs += "--label=storage='${params.STORAGE_VERSION}' "
-        }
-        if (params.BLOCKCHAIN_VERSION?.trim()) {
-          parts.add("b${params.BLOCKCHAIN_VERSION}")
-          buildArgs += "--label=blockchain='${params.BLOCKCHAIN_VERSION}' "
-        }
-        if (params.RLN_VERSION?.trim()) {
-          parts.add("r${params.RLN_VERSION}")
-          buildArgs += "--build-arg RLN_VERSION='${params.RLN_VERSION}' "
-          buildArgs += "--label=rln='${params.RLN_VERSION}' "
-        }
-        if (params.LEZ_RLN_VERSION?.trim()) {
-          buildArgs += "--build-arg LEZ_RLN_VERSION='${params.LEZ_RLN_VERSION}' "
-          buildArgs += "--label=lez-rln='${params.LEZ_RLN_VERSION}' "
-        }
-        if (params.LEZ_CORE_VERSION?.trim()) {
-          buildArgs += "--build-arg LEZ_CORE_VERSION='${params.LEZ_CORE_VERSION}' "
-          buildArgs += "--label=lez-core='${params.LEZ_CORE_VERSION}' "
-        }
-        if (params.MODULES_REPO?.trim()) {
-          buildArgs += "--build-arg MODULES_REPO='${params.MODULES_REPO}' "
-        }
-        if (params.RLN_REPO?.trim()) {
-          buildArgs += "--build-arg RLN_REPO='${params.RLN_REPO}' "
-        }
-
-        def tag = "${params.FLEET}-${parts.join('-')}"
-
         image = docker.build(
-          "${params.IMAGE_NAME}:${tag}",
-          "${buildArgs} ."
+          "${env.IMAGE_NAME}:${deployTag()}",
+          "${buildArgs()} ."
         )
-        env.IMAGE_TAG = tag
+      } }
+    }
+
+    stage('Check') {
+      steps { script {
+        image.inside('--entrypoint=""') {
+          sh 'logoscore --version'
+          sh 'lgpd --version'
+        }
       } }
     }
 
     stage('Push') {
       steps { script {
         withDockerRegistry([
-          credentialsId: params.DOCKER_CRED, url: params.DOCKER_REGISTRY_URL
+          credentialsId: env.DOCKER_CRED, url: env.DOCKER_REGISTRY_URL
         ]) {
           image.push()
         }
@@ -156,4 +109,48 @@ pipeline {
   post {
     always { sh 'docker image prune -f' }
   }
+}
+
+def fleet() {
+  if (env.JOB_NAME.contains('dev')) return 'dev'
+  if (env.JOB_NAME.contains('test')) return 'test'
+  return 'dev'
+}
+
+def deployTag() {
+  return "deploy-logos-${fleet()}"
+}
+
+def lastParam(name, fallback) {
+  return params[name] ?: currentBuild.previousSuccessfulBuild?.getBuildVariables()?.get(name) ?: fallback
+}
+
+def buildArgs() {
+  def args = "--label=build='${env.BUILD_URL}' --label=commit='${git.commit()}' "
+
+  ['DELIVERY_VERSION', 'STORAGE_VERSION', 'BLOCKCHAIN_VERSION', 'OPENMETRICS_VERSION'].each {
+    args += "--build-arg ${it}='${params[it]?.trim() ?: ''}' "
+    if (params[it]?.trim()) {
+      args += "--label=${it.replace('_VERSION','').toLowerCase()}='${params[it]}' "
+    }
+  }
+
+  if (params.RLN_VERSION?.trim()) {
+    args += "--build-arg RLN_VERSION='${params.RLN_VERSION}' "
+    args += "--label=rln='${params.RLN_VERSION}' "
+  }
+  if (params.LEZ_RLN_VERSION?.trim()) {
+    args += "--build-arg LEZ_RLN_VERSION='${params.LEZ_RLN_VERSION}' "
+  }
+  if (params.LEZ_CORE_VERSION?.trim()) {
+    args += "--build-arg LEZ_CORE_VERSION='${params.LEZ_CORE_VERSION}' "
+  }
+  if (params.MODULES_REPO?.trim()) {
+    args += "--build-arg MODULES_REPO='${params.MODULES_REPO}' "
+  }
+  if (params.RLN_REPO?.trim()) {
+    args += "--build-arg RLN_REPO='${params.RLN_REPO}' "
+  }
+
+  return args
 }
