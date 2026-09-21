@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial Execution Report</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d;
+    --text: #c9d1d9; --muted: #8b949e; --accent: #58a6ff;
+    --pass: #2ea043; --fail: #f85149; --info: #d29922;
+    --code-bg: #0b0f14;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  header {
+    position: sticky; top: 0; z-index: 10; background: var(--panel);
+    border-bottom: 1px solid var(--border); padding: 12px 20px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  .pill { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .pill.pass { background: rgba(46,160,67,.15); color: var(--pass); }
+  .pill.fail { background: rgba(248,81,73,.15); color: var(--fail); }
+  .pill.skip { background: rgba(210,153,34,.15); color: var(--info); }
+  select { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; }
+  main { max-width: 1600px; margin: 0 auto; padding: 16px; }
+  .tutorial-title { font-size: 20px; font-weight: 700; margin: 24px 0 8px; color: #fff; }
+  .row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    border: 1px solid var(--border); border-radius: 8px; margin: 10px 0; overflow: hidden;
+  }
+  .row.preamble, .row.section { grid-template-columns: 1fr; }
+  .col { padding: 14px 18px; min-width: 0; }
+  .col.left { border-right: 1px solid var(--border); }
+  .row.preamble .col.left, .row.section .col.left { border-right: none; }
+  .col.right { background: var(--panel); }
+  /* A row containing any failed step is tinted red end-to-end so it's
+     impossible to miss when scanning the report. */
+  .row.has-fail { border-color: var(--fail); box-shadow: 0 0 0 1px var(--fail); }
+  .row.has-fail .col.left { background: rgba(248,81,73,.07); border-right-color: var(--fail); }
+  .row.has-fail .col.right { background: rgba(248,81,73,.12); }
+  .col-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; }
+  .md :first-child { margin-top: 0; }
+  .md h1 { font-size: 22px; } .md h2 { font-size: 18px; } .md h3 { font-size: 15px; }
+  .md pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow-x: auto; }
+  .md code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  .md :not(pre) > code { background: rgba(110,118,129,.2); padding: .15em .4em; border-radius: 4px; }
+  .md table { border-collapse: collapse; margin: 8px 0; }
+  .md th, .md td { border: 1px solid var(--border); padding: 5px 10px; }
+  .md blockquote { border-left: 3px solid var(--border); margin: 8px 0; padding: 2px 12px; color: var(--muted); }
+  .md img { width: 100%; height: auto; border: 1px solid var(--border); border-radius: 6px; }
+  .exec { margin-bottom: 14px; }
+  .exec:last-child { margin-bottom: 0; }
+  .exec-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .badge { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 4px; }
+  .badge.pass { background: rgba(46,160,67,.15); color: var(--pass); }
+  .badge.fail { background: rgba(248,81,73,.15); color: var(--fail); }
+  .badge.info { background: rgba(210,153,34,.15); color: var(--info); }
+  .kind { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .note { color: var(--muted); font-size: 12.5px; margin-bottom: 6px; }
+  pre.cmd { background: var(--code-bg); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 6px; padding: 10px 12px; margin: 0 0 6px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+  pre.output { background: #010409; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin: 0; overflow-x: auto; max-height: 360px; overflow-y: auto; color: #b9c1ca; }
+  pre.cmd, pre.output { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.45; }
+  .empty { color: var(--muted); font-style: italic; font-size: 12.5px; }
+  details summary { cursor: pointer; color: var(--accent); font-size: 12px; margin-bottom: 4px; }
+  /* GitHub-style permalinks: every heading carries a link icon in the left
+     gutter (revealed on hover/focus) that copies a deep link to that section.
+     scroll-margin-top keeps the target clear of the sticky header. */
+  .heading-anchored { position: relative; scroll-margin-top: 76px; }
+  a.anchor {
+    position: absolute; left: -18px; top: 0; width: 16px; height: 1.55em;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--muted); opacity: 0; text-decoration: none;
+    transition: opacity .1s ease-in;
+  }
+  a.anchor svg { width: 14px; height: 14px; display: block; }
+  .heading-anchored:hover > a.anchor, a.anchor:focus { opacity: 1; }
+  a.anchor:hover { color: var(--accent); }
+  .heading-anchored.flash { animation: flash 1.4s ease-out; border-radius: 4px; }
+  @keyframes flash {
+    from { background: rgba(88,166,255,.28); box-shadow: 0 0 0 4px rgba(88,166,255,.28); }
+    to { background: transparent; box-shadow: 0 0 0 4px transparent; }
+  }
+  #toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+    background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 7px 14px; font-size: 12.5px; z-index: 20;
+    opacity: 0; pointer-events: none; transition: opacity .15s ease-in-out;
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Tutorial Execution Report</h1>
+  <span id="summary"></span>
+  <label style="margin-left:auto; font-size:12px; color:var(--muted)">Tutorial
+    <select id="picker"></select>
+  </label>
+</header>
+<main id="main"></main>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script id="report-data" type="application/json">{"generated_platform": "Linux", "summary": {"failed": 11, "passed": 3, "skipped": 0}, "tutorials": [{"meta": {"name": "Running the Logos image: load modules and serve OpenMetrics", "platform": "Linux (ext=so)", "release": "(none)"}, "rows": [{"execs": [], "md": "# Running the Logos image: load modules and serve OpenMetrics\n\nThe `logos-docker` image bundles the three Logos CLIs (`logoscore`, `lgpm`,\n`lgpd`) and ships a set of modules pre-installed under\n`/home/ubuntu/modules` \u2014 `delivery_module`, `storage_module`,\n`blockchain_module`, and the [`openmetrics`](https://github.com/logos-co/openmetrics-module)\nscraper. The container's default `CMD` starts a `logoscore` daemon over that\nmodules directory; everything else is done by talking to that daemon.\n\nThis doc-test drives the image end-to-end:\n\n1. **Build** the image and **run** it as a detached container, publishing the\n   OpenMetrics port so it is reachable from the host.\n2. **Load** the bundled modules into the running daemon.\n3. **Initialize** `openmetrics` \u2014 load it and `start` its HTTP server with a\n   config JSON naming the modules to scrape.\n4. **Scrape** `/metrics` from outside the container and check `/health`.\n\n> **About the metrics output.** `openmetrics` is a pure passthrough: on each\n> scrape it calls every listed module's `collectMetrics()` and renders the\n> aggregated result. None of the modules bundled in this image implement\n> `collectMetrics()` yet, so `/metrics` currently serves only the OpenMetrics\n> framing and ends with `# EOF` \u2014 no series. The moment a bundled module starts\n> implementing `collectMetrics()`, its series appear here automatically with a\n> `module=\"<name>\"` label. For a worked provider example, see the\n> [openmetrics-module doc-test](https://github.com/logos-co/openmetrics-module/tree/master/doctests).\n\n**What you'll build:** The `logos-docker` image, run as a container with its OpenMetrics endpoint published to the host; the bundled modules loaded and `openmetrics` serving `/metrics`.\n\n**What you'll learn:**\n\n- How to build and run the image from the Dockerfile in this repo\n- How to publish the OpenMetrics port so the endpoint is reachable from outside the container\n- How to load the pre-installed modules into the running `logoscore` daemon\n- How to initialize `openmetrics` (`load-module` + `call openmetrics start`) and scrape `/metrics`\n\n## Prerequisites\n\n- **Docker** \u2014 to build and run the image.\n- **curl** \u2014 to scrape the published endpoint from the host.\n- A network connection \u2014 the first build downloads the Nix builder layer and builds the CLIs, which can take several minutes."}, {"execs": [], "md": "## Step 1: Build and run the image\n\nThe image is built straight from this repo. The Dockerfile is a multi-stage\nbuild: a `nixos/nix` stage builds the three CLIs as AppImages, and an\n`ubuntu` stage extracts them, downloads the module packages with `lgpd`, and\ninstalls them with `lgpm`. The default `CMD` is\n`logoscore -D -m ./modules --config-dir /var/lib/logos/config --persistence-path /var/lib/logos/persistence`."}, {"execs": [{"cmd": "docker build -t logos:doctest \"https://github.com/logos-co/logos-docker.git#${LOGOS_DOCKER_REF:-master}\"\n", "exit_code": 1, "kind": "run", "note": "exit code 1", "output": "#0 building with \"default\" instance using docker driver\n\n#1 [internal] load git source https://github.com/logos-co/logos-docker.git#489473b318f260bca6df747ca1ed910a52e09d45\n#1 0.011 Initialized empty Git repository in /var/lib/docker/overlay2/ichvqqtk86k34rbjsvndsth00/diff/\n#1 0.016 fatal: Not a valid object name 489473b318f260bca6df747ca1ed910a52e09d45^{commit}\n#1 0.276 From https://github.com/logos-co/logos-docker\n#1 0.276  * branch            489473b318f260bca6df747ca1ed910a52e09d45 -> FETCH_HEAD\n#1 DONE 0.6s\n\n#2 [auth] nixos/nix:pull token for registry-1.docker.io\n#2 DONE 0.0s\n\n#3 [auth] library/ubuntu:pull token for registry-1.docker.io\n#3 DONE 0.0s\n\n#4 [internal] load metadata for docker.io/nixos/nix:2.34.1\n#4 ...\n\n#5 [internal] load metadata for docker.io/library/ubuntu:24.04\n#5 DONE 0.3s\n\n#4 [internal] load metadata for docker.io/nixos/nix:2.34.1\n#4 DONE 0.4s\n\n#6 [stage-1  1/10] FROM docker.io/library/ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3\n#6 resolve docker.io/library/ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3 done\n#6 sha256:496754492fb28b4d3049432f2ca787449331e23fb14f0dd3fffea86bf5a93eb4 424B / 424B done\n#6 sha256:6232b38791000e3818b58d8847b5a8f5612d606929e01156dd8febc423e0f2ef 2.05kB / 2.05kB done\n#6 sha256:edd1ed89f0d443580bd42e5a10cd8736aba5a3438b2a0645c2ebb50119bb0eba 29.76MB / 29.76MB 0.2s\n#6 sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3 6.69kB / 6.69kB done\n#6 sha256:edd1ed89f0d443580bd42e5a10cd8736aba5a3438b2a0645c2ebb50119bb0eba 29.76MB / 29.76MB 0.6s done\n#6 extracting sha256:edd1ed89f0d443580bd42e5a10cd8736aba5a3438b2a0645c2ebb50119bb0eba\n#6 extracting sha256:edd1ed89f0d443580bd42e5a10cd8736aba5a3438b2a0645c2ebb50119bb0eba 1.4s done\n#6 DONE 2.3s\n\n#7 [stage-1  2/10] RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl netcat-openbsd && rm -rf /var/lib/apt/lists/*\n#7 0.400 Get:1 http://archive.ubuntu.com/ubuntu noble InRelease [256 kB]\n#7 0.463 Get:2 http://security.ubuntu.com/ubuntu noble-security InRelease [126 kB]\n#7 0.857 Get:3 http://archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]\n#7 0.969 Get:4 http://archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]\n#7 1.016 Get:5 http://security.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1544 kB]\n#7 1.084 Get:6 http://archive.ubuntu.com/ubuntu noble/multiverse amd64 Packages [331 kB]\n#7 1.193 Get:7 http://archive.ubuntu.com/ubuntu noble/main amd64 Packages [1808 kB]\n#7 1.439 Get:8 http://archive.ubuntu.com/ubuntu noble/universe amd64 Packages [19.3 MB]\n#7 1.744 Get:9 http://security.ubuntu.com/ubuntu noble-security/main amd64 Packages [1259 kB]\n#7 1.882 Get:10 http://security.ubuntu.com/ubuntu noble-security/multiverse amd64 Packages [50.0 kB]\n#7 1.886 Get:11 http://security.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [1839 kB]\n#7 1.934 Get:12 http://archive.ubuntu.com/ubuntu noble/restricted amd64 Packages [117 kB]\n#7 1.936 Get:13 http://archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [2159 kB]\n#7 1.972 Get:14 http://archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [1960 kB]\n#7 1.985 Get:15 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1580 kB]\n#7 1.994 Get:16 http://archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Packages [56.2 kB]\n#7 1.995 Get:17 http://archive.ubuntu.com/ubuntu noble-backports/multiverse amd64 Packages [671 B]\n#7 1.996 Get:18 http://archive.ubuntu.com/ubuntu noble-backports/universe amd64 Packages [36.0 kB]\n#7 1.996 Get:19 http://archive.ubuntu.com/ubuntu noble-backports/main amd64 Packages [49.0 kB]\n#7 3.006 Fetched 32.7 MB in 3s (11.8 MB/s)\n#7 3.006 Reading package lists...\n#7 4.063 Reading package lists...\n#7 5.119 Building dependency tree...\n#7 5.341 Reading state information...\n#7 5.516 The following additional packages will be installed:\n#7 5.516   libbrotli1 libbsd0 libcurl4t64 libgssapi-krb5-2 libk5crypto3 libkeyutils1\n#7 5.516   libkrb5-3 libkrb5support0 libldap2 libnghttp2-14 libpsl5t64 librtmp1\n#7 5.517   libsasl2-2 libsasl2-modules-db libssh-4 openssl\n#7 5.518 Suggested packages:\n#7 5.518   krb5-doc krb5-user\n#7 5.518 Recommended packages:\n#7 5.518   krb5-locales libldap-common publicsuffix libsasl2-modules\n#7 5.571 The following NEW packages will be installed:\n#7 5.572   ca-certificates curl libbrotli1 libbsd0 libcurl4t64 libgssapi-krb5-2\n#7 5.572   libk5crypto3 libkeyutils1 libkrb5-3 libkrb5support0 libldap2 libnghttp2-14\n#7 5.572   libpsl5t64 librtmp1 libsasl2-2 libsasl2-modules-db libssh-4 netcat-openbsd\n#7 5.573   openssl\n#7 5.820 0 upgraded, 19 newly installed, 0 to remove and 1 not upgraded.\n#7 5.820 Need to get 3395 kB of archives.\n#7 5.820 After this operation, 8519 kB of additional disk space will be used.\n#7 5.820 Get:1 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 openssl amd64 3.0.13-0ubuntu3.15 [1003 kB]\n#7 ...\n\n#8 [builder 1/7] FROM docker.io/nixos/nix:2.34.1@sha256:1d59121e0c361076b4f23c158d236702f2f045b3b477b51075b81ceb6188d34a\n#8 resolve docker.io/nixos/nix:2.34.1@sha256:1d59121e0c361076b4f23c158d236702f2f045b3b477b51075b81ceb6188d34a done\n#8 extracting sha256:32e601cdc7fa9968b531fa806c5cf9d0558dd395a31e837613e5c4ee24548e00 done\n#8 extracting sha256:ea6169bb3d4614e7142af512915c2f5f5bc094aa73eca7843e3d0be7d29ef506 0.0s done\n#8 sha256:594f717abc59d126d27357acf37da03adea507de4428d8217e7a051289a12f0e 10.67MB / 10.67MB 0.6s done\n#8 sha256:a1efb5fef5bc06e4d992ed4627d6e716564053ae197780a217abbbcb6114163a 14.83kB / 14.83kB done\n#8 sha256:32e601cdc7fa9968b531fa806c5cf9d0558dd395a31e837613e5c4ee24548e00 141.38kB / 141.38kB 0.0s done\n#8 sha256:1645ee62bcf1132fdc3cb1ba4a59bcfa1d511577cbcdfc7a981796e76e7ba1c2 23.07kB / 23.07kB done\n#8 sha256:bc3d7b1e103098efbed445a41b0ea328dd9160c1012b5756bbc20a3501a49c8b 819.25kB / 819.25kB 0.1s done\n#8 sha256:1d59121e0c361076b4f23c158d236702f2f045b3b477b51075b81ceb6188d34a 745B / 745B done\n#8 sha256:ec10d2b7910c326b57159ff298d661fe0d13df8ec1ec4ebbcc85eed8fe9b70df 35.03kB / 35.03kB 0.2s done\n#8 sha256:ea6169bb3d4614e7142af512915c2f5f5bc094aa73eca7843e3d0be7d29ef506 299.43kB / 299.43kB 0.0s done\n#8 sha256:f44023ca1850639580e83632bd202cf6d8de477fcd012b65891ad724d843ea4a 31.41kB / 31.41kB 0.8s done\n#8 sha256:ec312a25e05891fd1fa1c75b3e45eb8f915cd178950e0df414e6b8e95c265484 54.03kB / 54.03kB 0.8s done\n#8 sha256:6251c5ec7b436fcc162f3e36f3c0f09013492a069f5105d7adf8cd4b65ebdc29 249.50kB / 249.50kB 0.8s done\n#8 sha256:dcf06b678516ddc062d3fe49dae81d1c3a3edf5add5173a3443f187094b928e0 112.05kB / 112.05kB 0.8s done\n#8 sha256:09f1e18c6fe64facd0b662fb193a4727674a28ad6c83246f226578d0e344b145 68.48kB / 68.48kB 0.8s done\n#8 sha256:58865ecf2072e140f5cdaef2cddd62fa1fe10ec6633b2a5ac66bb68507c0847c 420.13kB / 420.13kB 1.1s done\n#8 sha256:b6b0e6c0f68e4c49a9b955933bb2d5d9f39beb446c66bff3a9f89538e9fd1f99 209.56kB / 209.56kB 0.9s done\n#8 sha256:5dc4a74d5cec75aa8b45abca71ffb8daf0a6fb00f11eb7d07478d7cf27db5484 276.87kB / 276.87kB 1.1s done\n#8 sha256:7807cfe20cdb0c207ac2d20988441adff27e3588b5bd5592f89ac14c0c819fb3 295.68kB / 295.68kB 1.1s done\n#8 sha256:0c63dd7dcb2d953e02f1e3bcae8d56d0cbb63146ead345d66351e6973eaa6a48 648.01kB / 648.01kB 1.1s done\n#8 sha256:2e121bb83151b4a4360328c8e4ae7df1352cb85f348e09f2eb0c451968db0a19 1.22MB / 1.22MB 1.3s done\n#8 sha256:f88fd4f6ec8602fee3cc46e2085aab984fec5d1e6605b8ddf51b166e38abefe0 821.67kB / 821.67kB 1.2s done\n#8 sha256:f6ae56c34d8936ddbd4f5801de5869a0ca47f10ebce9aac56cb84ad413f747c6 884.63kB / 884.63kB 1.2s done\n#8 sha256:1872c791f5b19a9d0c590b5cbb95cb45eee1e0fd672358519ea0e3cfe72cc937 655.33kB / 655.33kB 1.1s done\n#8 sha256:07a5402454cb92350358186cce8418dec1eef1b8f13694abbf3473fc03c12a23 265.90kB / 265.90kB 1.4s done\n#8 sha256:d91d266b0c1be80123b452763c1863bb578a8829a3037f81478779d616db4512 1.85MB / 1.85MB 1.4s done\n#8 sha256:1f5c155058281050bd559ab4fad860ecaca8a18b777f7818fe33fab92ae8fede 1.11MB / 1.11MB 1.4s done\n#8 sha256:22c7d97b911dcb1bd6d56d91dd7da60a1e8911fb5d4a4c3a54e90295b37e977b 1.66MB / 1.66MB 1.4s done\n#8 sha256:9e3a618c427106601764d2bbc1ce7e739a489901a061221954ec381dd7cdb1d2 824.37kB / 824.37kB 1.4s done\n#8 sha256:c1c0d8a98d6f6e3fac2470974d975dcc7f51d81fc78fb2181132347e57e91073 3.41MB / 3.41MB 1.6s done\n#8 sha256:e2c57edd132d610a036f20e75099f2194ad6d069f87ba59a9d4e6a081e9ded0d 246.52kB / 246.52kB 1.6s done\n#8 sha256:cf6ad4bce7bc3932c8ed74c745d613e819d80914c1a4f7e92342214c8583116f 142.05kB / 142.05kB 1.6s done\n#8 sha256:d85e68a853348f157694b3a97c6b623d96c46e78eef0040c1793cb801a2ed4cd 3.64MB / 3.64MB 1.6s done\n#8 sha256:29d03d5bc28ad758b2d295b3f79558492454d6debfdd907a073e3420a6eb4906 423.90kB / 423.90kB 1.7s done\n#8 sha256:860acc1e704c0a62905f24747d964b0e7769d6c4f2ab2cf2d19655806f3a8f4a 351.12kB / 351.12kB 1.7s done\n#8 sha256:32059865c0608eb066d160064063c7a233ea4b166f17b3f0b84253f5470d541a 543.98kB / 543.98kB 1.7s done\n#8 sha256:e10389e3029db492f48e2a15ae503c4b3945b8d5000cf89063b320460ff8afe8 351.11kB / 351.11kB 1.9s done\n#8 sha256:774eef6b366298a76bf58d70d1de6798681d2fe9c691d1ac2d9268114b893cd1 3.32MB / 3.32MB 2.0s done\n#8 sha256:ba174ecc3d996841ef7a1f0b02f609f28326f575e08e898c791406021113cbab 428.79kB / 428.79kB 1.9s done\n#8 extracting sha256:bc3d7b1e103098efbed445a41b0ea328dd9160c1012b5756bbc20a3501a49c8b 0.0s done\n#8 sha256:644f15b0c98554da4c6afd6f1ad189bd94978c63ce347b8bd0e5d7b8f25eb166 238.29kB / 238.29kB 2.0s done\n#8 sha256:36a44da3b04bc6fb00b6a56387aad4b89ab6c309673e433c0fba77175d4c88f8 480.42kB / 480.42kB 2.0s done\n#8 sha256:db662ad5385915623d30a77cf5bf8b48942a14c9f51a486c60d8e99ee9f38da1 1.16MB / 1.16MB 2.0s done\n#8 sha256:42ea76084e801d90a646a5495f243127ce25b0e77cd45935151be48804194999 2.62MB / 2.62MB 2.0s done\n#8 sha256:2a2cd9d7d78c83d33d7e34b55d04301f4d9c488a2c93975abb64fcbd6bc022f0 436.31kB / 436.31kB 2.2s done\n#8 sha256:dafa480472306de1b3b38fa76bdd0d8cd9d72bd54831aa27086c4ae5a85061f0 734.58kB / 734.58kB 2.0s done\n#8 sha256:f4428044bdadc999801b7fd8410b50a19cf6932b360b9f1b405a5107eb34e8f6 226.49kB / 226.49kB 2.1s done\n#8 sha256:eaa25811c1c8c2e8b3c01e6b1989c55f5bff19b7afe43ee8a6122d1b1c655ad7 794.79kB / 794.79kB 2.1s done\n#8 sha256:c32385b9ee3a8d429bb0160750e40c62263f291fcb795dcc9e7461bcb1d010be 0B / 1.68MB 2.2s\n#8 sha256:b6a33318a02bafa4f0597e4243343e527b4b0b956d73d8530390a0271c0221ec 188.62kB / 188.62kB 2.2s done\n#8 sha256:e5b48b0c2ae49f9626e4ec8a3e9651f77bc41fe4a6dd75de3564fe675ceeccab 0B / 657.72kB 2.2s\n#8 extracting sha256:594f717abc59d126d27357acf37da03adea507de4428d8217e7a051289a12f0e 0.5s done\n#8 sha256:433fc54a19b4fa0311a9460a6f7ff7b8035d1507f465395c0a012faa94d7f2de 2.79MB / 2.79MB 2.3s done\n#8 sha256:da42a763430e1e659410aa82242808776d92bb02d61046575d7ddd02a27689ba 442.53kB / 442.53kB 2.3s done\n#8 sha256:d35d97de6636628859887f6630dbd2c35f62a218ce5eae2c11ba015c10af1b00 496.63kB / 496.63kB 2.3s done\n#8 sha256:51096989083243805e847c4e08f1a2caf824cfac1fd7bf57ee33c4d246280996 1.38MB / 1.38MB 2.2s done\n#8 sha256:61aa42971e7554d98b871769782706f396476b983ba7458786313a25fa01095f 719.95kB / 719.95kB 2.3s done\n#8 sha256:81a229a3e2bddf5854515ff61f0acfe8ac6cebcbd3937f712bfc623a35512282 611.69kB / 611.69kB 2.3s done\n#8 sha256:ba956f61dcd01569cbb7d11212439429b1f1f9439c62d46b3fabde590bd0afd7 964.77kB / 964.77kB 2.4s done\n#8 sha256:a6edb9509058de51976e1ff0ebc54f74498b4c8559cbc9c947e409c4afe1b31b 550.09kB / 550.09kB 2.4s done\n#8 sha256:67505dc3d9064c654e09e863e605d5a2f14880aaf862fff489dec7d6a850b804 4.45MB / 4.45MB 2.4s done\n#8 sha256:08559b7d00247068ad6eb0ab9c3d412fbf6522ce08c20dbb94aa3233ab70a9f1 2.24MB / 2.24MB 2.5s done\n#8 sha256:a7ee6ad148eb089bcda6ac2ca6457a1c75b3e94a172cf4257fe3af554c0ed270 5.14MB / 5.14MB 2.4s done\n#8 sha256:6af9e13c797a2ee8cb6a93579808b5475f843d9fe702a2c778c449546db231ea 1.12MB / 1.12MB 2.4s done\n#8 sha256:436251ef77a51f0da5a239493f7daaec28c07cf445373969f0367d8be268c072 496.63kB / 496.63kB 2.3s done\n#8 sha256:54d211734a7457324c71e6a1457a83f3556785c445ddb6d0d20756e2cc24c7cf 3.64MB / 3.64MB 2.4s done\n#8 sha256:ffe24b8b826a9b84991421efb8b84f3ec0f9d7d37fcf9482c47df62076e2c701 1.81MB / 1.81MB 2.3s done\n#8 sha256:c8055cddb2925718355d54db59a866a28c38345f042551f5838aafd66a882015 1.38MB / 1.38MB 2.5s done\n#8 sha256:0ab1d90853be85fa611760dea3a98fdfc668f158e05a8b41f0dbbff4f73d6c66 648.26kB / 648.26kB 2.5s done\n#8 sha256:ae2618316aaed935657c6d5e6624e39b29f134ac221d966ab621af7fdb0d4f84 23.14MB / 23.14MB 2.6s done\n#8 sha256:e732864323dfd5bedbd7f718debab76d51e2a77f2ba45ef4de5aa496d8b27aba 345.17kB / 345.17kB 2.5s done\n#8 sha256:79166fff11ac816bb671701e0fd93b4c65b588838a779cc119eef797f78ae33f 1.25MB / 1.25MB 2.5s done\n#8 sha256:47008ba74f8695520964c83b6d7ab5e7a4d967316c08abb59e9d47168638821b 657.03kB / 657.03kB 2.6s done\n#8 sha256:3e645d551f0552df3d9ed35a525ab8ca247c4453655a3e7f1323be53df4446f6 37.82kB / 37.82kB 2.6s done\n#8 sha256:729d6da1079bb4884228cc74751922ecb903ff2c6e698f2484f083e1e2314c5c 52.95MB / 52.95MB 2.6s done\n#8 extracting sha256:ec10d2b7910c326b57159ff298d661fe0d13df8ec1ec4ebbcc85eed8fe9b70df done\n#8 extracting sha256:f44023ca1850639580e83632bd202cf6d8de477fcd012b65891ad724d843ea4a done\n#8 extracting sha256:09f1e18c6fe64facd0b662fb193a4727674a28ad6c83246f226578d0e344b145 done\n#8 extracting sha256:ec312a25e05891fd1fa1c75b3e45eb8f915cd178950e0df414e6b8e95c265484 done\n#8 extracting sha256:dcf06b678516ddc062d3fe49dae81d1c3a3edf5add5173a3443f187094b928e0 done\n#8 extracting sha256:6251c5ec7b436fcc162f3e36f3c0f09013492a069f5105d7adf8cd4b65ebdc29 done\n#8 extracting sha256:b6b0e6c0f68e4c49a9b955933bb2d5d9f39beb446c66bff3a9f89538e9fd1f99 done\n#8 extracting sha256:5dc4a74d5cec75aa8b45abca71ffb8daf0a6fb00f11eb7d07478d7cf27db5484 done\n#8 extracting sha256:58865ecf2072e140f5cdaef2cddd62fa1fe10ec6633b2a5ac66bb68507c0847c done\n#8 extracting sha256:7807cfe20cdb0c207ac2d20988441adff27e3588b5bd5592f89ac14c0c819fb3 0.0s done\n#8 extracting sha256:0c63dd7dcb2d953e02f1e3bcae8d56d0cbb63146ead345d66351e6973eaa6a48 0.0s done\n#8 extracting sha256:1872c791f5b19a9d0c590b5cbb95cb45eee1e0fd672358519ea0e3cfe72cc937 0.0s done\n#8 extracting sha256:f6ae56c34d8936ddbd4f5801de5869a0ca47f10ebce9aac56cb84ad413f747c6 0.0s done\n#8 extracting sha256:f88fd4f6ec8602fee3cc46e2085aab984fec5d1e6605b8ddf51b166e38abefe0 0.0s done\n#8 extracting sha256:2e121bb83151b4a4360328c8e4ae7df1352cb85f348e09f2eb0c451968db0a19 0.0s done\n#8 extracting sha256:07a5402454cb92350358186cce8418dec1eef1b8f13694abbf3473fc03c12a23 0.0s done\n#8 extracting sha256:1f5c155058281050bd559ab4fad860ecaca8a18b777f7818fe33fab92ae8fede 0.0s done\n#8 extracting sha256:9e3a618c427106601764d2bbc1ce7e739a489901a061221954ec381dd7cdb1d2 0.5s done\n#8 extracting sha256:d91d266b0c1be80123b452763c1863bb578a8829a3037f81478779d616db4512 0.0s done\n#8 extracting sha256:22c7d97b911dcb1bd6d56d91dd7da60a1e8911fb5d4a4c3a54e90295b37e977b 0.0s done\n#8 extracting sha256:c1c0d8a98d6f6e3fac2470974d975dcc7f51d81fc78fb2181132347e57e91073 0.1s done\n#8 extracting sha256:cf6ad4bce7bc3932c8ed74c745d613e819d80914c1a4f7e92342214c8583116f done\n#8 extracting sha256:e2c57edd132d610a036f20e75099f2194ad6d069f87ba59a9d4e6a081e9ded0d done\n#8 extracting sha256:d85e68a853348f157694b3a97c6b623d96c46e78eef0040c1793cb801a2ed4cd 0.1s done\n#8 extracting sha256:32059865c0608eb066d160064063c7a233ea4b166f17b3f0b84253f5470d541a 0.0s done\n#8 extracting sha256:29d03d5bc28ad758b2d295b3f79558492454d6debfdd907a073e3420a6eb4906 0.0s done\n#8 extracting sha256:860acc1e704c0a62905f24747d964b0e7769d6c4f2ab2cf2d19655806f3a8f4a done\n#8 extracting sha256:e10389e3029db492f48e2a15ae503c4b3945b8d5000cf89063b320460ff8afe8 0.0s done\n#8 extracting sha256:774eef6b366298a76bf58d70d1de6798681d2fe9c691d1ac2d9268114b893cd1 0.1s done\n#8 extracting sha256:ba174ecc3d996841ef7a1f0b02f609f28326f575e08e898c791406021113cbab done\n#8 extracting sha256:36a44da3b04bc6fb00b6a56387aad4b89ab6c309673e433c0fba77175d4c88f8 done\n#8 extracting sha256:42ea76084e801d90a646a5495f243127ce25b0e77cd45935151be48804194999 0.1s done\n#8 extracting sha256:db662ad5385915623d30a77cf5bf8b48942a14c9f51a486c60d8e99ee9f38da1 0.0s done\n#8 extracting sha256:644f15b0c98554da4c6afd6f1ad189bd94978c63ce347b8bd0e5d7b8f25eb166 0.0s done\n#8 extracting sha256:dafa480472306de1b3b38fa76bdd0d8cd9d72bd54831aa27086c4ae5a85061f0 0.0s done\n#8 extracting sha256:f4428044bdadc999801b7fd8410b50a19cf6932b360b9f1b405a5107eb34e8f6 0.0s done\n#8 extracting sha256:eaa25811c1c8c2e8b3c01e6b1989c55f5bff19b7afe43ee8a6122d1b1c655ad7 0.0s done\n#8 extracting sha256:2a2cd9d7d78c83d33d7e34b55d04301f4d9c488a2c93975abb64fcbd6bc022f0 0.0s done\n#8 extracting sha256:c32385b9ee3a8d429bb0160750e40c62263f291fcb795dcc9e7461bcb1d010be 0.0s done\n#8 extracting sha256:b6a33318a02bafa4f0597e4243343e527b4b0b956d73d8530390a0271c0221ec done\n#8 extracting sha256:e5b48b0c2ae49f9626e4ec8a3e9651f77bc41fe4a6dd75de3564fe675ceeccab 0.0s done\n#8 extracting sha256:843616d586f9ec7e376582b8b58360c9b5184777f4802945ca9ac124e8cc3204 0.0s done\n#8 extracting sha256:51096989083243805e847c4e08f1a2caf824cfac1fd7bf57ee33c4d246280996 0.1s done\n#8 extracting sha256:81a229a3e2bddf5854515ff61f0acfe8ac6cebcbd3937f712bfc623a35512282 0.0s done\n#8 extracting sha256:433fc54a19b4fa0311a9460a6f7ff7b8035d1507f465395c0a012faa94d7f2de 0.1s done\n#8 extracting sha256:da42a763430e1e659410aa82242808776d92bb02d61046575d7ddd02a27689ba 0.0s done\n#8 extracting sha256:61aa42971e7554d98b871769782706f396476b983ba7458786313a25fa01095f 0.0s done\n#8 extracting sha256:d35d97de6636628859887f6630dbd2c35f62a218ce5eae2c11ba015c10af1b00 0.0s done\n#8 extracting sha256:436251ef77a51f0da5a239493f7daaec28c07cf445373969f0367d8be268c072 0.0s done\n#8 extracting sha256:ffe24b8b826a9b84991421efb8b84f3ec0f9d7d37fcf9482c47df62076e2c701 0.1s done\n#8 extracting sha256:ba956f61dcd01569cbb7d11212439429b1f1f9439c62d46b3fabde590bd0afd7 0.0s done\n#8 extracting sha256:a7ee6ad148eb089bcda6ac2ca6457a1c75b3e94a172cf4257fe3af554c0ed270 0.2s done\n#8 extracting sha256:67505dc3d9064c654e09e863e605d5a2f14880aaf862fff489dec7d6a850b804 0.1s done\n#8 extracting sha256:6af9e13c797a2ee8cb6a93579808b5475f843d9fe702a2c778c449546db231ea 0.1s done\n#8 extracting sha256:54d211734a7457324c71e6a1457a83f3556785c445ddb6d0d20756e2cc24c7cf 0.1s done\n#8 extracting sha256:08559b7d00247068ad6eb0ab9c3d412fbf6522ce08c20dbb94aa3233ab70a9f1 0.0s done\n#8 extracting sha256:a6edb9509058de51976e1ff0ebc54f74498b4c8559cbc9c947e409c4afe1b31b 0.0s done\n#8 extracting sha256:c8055cddb2925718355d54db59a866a28c38345f042551f5838aafd66a882015 0.0s done\n#8 extracting sha256:e732864323dfd5bedbd7f718debab76d51e2a77f2ba45ef4de5aa496d8b27aba 0.0s done\n#8 extracting sha256:0ab1d90853be85fa611760dea3a98fdfc668f158e05a8b41f0dbbff4f73d6c66 0.0s done\n#8 extracting sha256:79166fff11ac816bb671701e0fd93b4c65b588838a779cc119eef797f78ae33f 0.0s done\n#8 extracting sha256:ae2618316aaed935657c6d5e6624e39b29f134ac221d966ab621af7fdb0d4f84 0.4s done\n#8 extracting sha256:729d6da1079bb4884228cc74751922ecb903ff2c6e698f2484f083e1e2314c5c 1.6s\n#8 ...\n\n#7 [stage-1  2/10] RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl netcat-openbsd && rm -rf /var/lib/apt/lists/*\n#7 6.800 Get:2 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 ca-certificates all 20260601~24.04.1 [139 kB]\n#7 6.814 Get:3 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libbsd0 amd64 0.12.1-1build1.1 [41.2 kB]\n#7 6.819 Get:4 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libkrb5support0 amd64 1.20.1-6ubuntu2.10 [34.9 kB]\n#7 6.823 Get:5 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libk5crypto3 amd64 1.20.1-6ubuntu2.10 [81.9 kB]\n#7 6.832 Get:6 http://archive.ubuntu.com/ubuntu noble/main amd64 libkeyutils1 amd64 1.6.3-3build1 [9490 B]\n#7 6.833 Get:7 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libkrb5-3 amd64 1.20.1-6ubuntu2.10 [348 kB]\n#7 6.937 Get:8 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libgssapi-krb5-2 amd64 1.20.1-6ubuntu2.10 [143 kB]\n#7 6.953 Get:9 http://archive.ubuntu.com/ubuntu noble/main amd64 netcat-openbsd amd64 1.226-1ubuntu2 [44.3 kB]\n#7 6.958 Get:10 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libnghttp2-14 amd64 1.59.0-1ubuntu0.4 [74.6 kB]\n#7 6.966 Get:11 http://archive.ubuntu.com/ubuntu noble/main amd64 libpsl5t64 amd64 0.21.2-1.1build1 [57.1 kB]\n#7 7.025 Get:12 http://archive.ubuntu.com/ubuntu noble/main amd64 libbrotli1 amd64 1.1.0-2build2 [331 kB]\n#7 7.054 Get:13 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libsasl2-modules-db amd64 2.1.28+dfsg1-5ubuntu3.1 [20.4 kB]\n#7 7.055 Get:14 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libsasl2-2 amd64 2.1.28+dfsg1-5ubuntu3.1 [53.2 kB]\n#7 7.061 Get:15 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libldap2 amd64 2.6.10+dfsg-0ubuntu0.24.04.1 [198 kB]\n#7 7.078 Get:16 http://archive.ubuntu.com/ubuntu noble/main amd64 librtmp1 amd64 2.4+20151223.gitfa8646d.1-2build7 [56.3 kB]\n#7 7.138 Get:17 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libssh-4 amd64 0.10.6-2ubuntu0.5 [191 kB]\n#7 7.150 Get:18 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libcurl4t64 amd64 8.5.0-2ubuntu10.13 [343 kB]\n#7 7.173 Get:19 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 curl amd64 8.5.0-2ubuntu10.13 [226 kB]\n#7 7.317 debconf: delaying package configuration, since apt-utils is not installed\n#7 7.346 Fetched 3395 kB in 2s (2118 kB/s)\n#7 7.360 Selecting previously unselected package openssl.\n#7 7.360 (Reading database ... \n(Reading database ... 5%\n(Reading database ... 10%\n(Reading database ... 15%\n(Reading database ... 20%\n(Reading database ... 25%\n(Reading database ... 30%\n(Reading database ... 35%\n(Reading database ... 40%\n(Reading database ... 45%\n(Reading database ... 50%\n(Reading database ... 55%\n(Reading database ... 60%\n(Reading database ... 65%\n(Reading database ... 70%\n(Reading database ... 75%\n(Reading database ... 80%\n(Reading database ... 85%\n(Reading database ... 90%\n(Reading database ... 95%\n(Reading database ... 100%\n(Reading database ... 4381 files and directories currently installed.)\n#7 7.368 Preparing to unpack .../00-openssl_3.0.13-0ubuntu3.15_amd64.deb ...\n#7 7.369 Unpacking openssl (3.0.13-0ubuntu3.15) ...\n#7 7.419 Selecting previously unselected package ca-certificates.\n#7 7.420 Preparing to unpack .../01-ca-certificates_20260601~24.04.1_all.deb ...\n#7 7.421 Unpacking ca-certificates (20260601~24.04.1) ...\n#7 7.471 Selecting previously unselected package libbsd0:amd64.\n#7 7.471 Preparing to unpack .../02-libbsd0_0.12.1-1build1.1_amd64.deb ...\n#7 7.473 Unpacking libbsd0:amd64 (0.12.1-1build1.1) ...\n#7 7.490 Selecting previously unselected package libkrb5support0:amd64.\n#7 7.491 Preparing to unpack .../03-libkrb5support0_1.20.1-6ubuntu2.10_amd64.deb ...\n#7 7.492 Unpacking libkrb5support0:amd64 (1.20.1-6ubuntu2.10) ...\n#7 7.509 Selecting previously unselected package libk5crypto3:amd64.\n#7 7.510 Preparing to unpack .../04-libk5crypto3_1.20.1-6ubuntu2.10_amd64.deb ...\n#7 7.511 Unpacking libk5crypto3:amd64 (1.20.1-6ubuntu2.10) ...\n#7 7.529 Selecting previously unselected package libkeyutils1:amd64.\n#7 7.530 Preparing to unpack .../05-libkeyutils1_1.6.3-3build1_amd64.deb ...\n#7 7.531 Unpacking libkeyutils1:amd64 (1.6.3-3build1) ...\n#7 7.547 Selecting previously unselected package libkrb5-3:amd64.\n#7 7.548 Preparing to unpack .../06-libkrb5-3_1.20.1-6ubuntu2.10_amd64.deb ...\n#7 7.549 Unpacking libkrb5-3:amd64 (1.20.1-6ubuntu2.10) ...\n#7 7.572 Selecting previously unselected package libgssapi-krb5-2:amd64.\n#7 7.573 Preparing to unpack .../07-libgssapi-krb5-2_1.20.1-6ubuntu2.10_amd64.deb ...\n#7 7.574 Unpacking libgssapi-krb5-2:amd64 (1.20.1-6ubuntu2.10) ...\n#7 7.592 Selecting previously unselected package netcat-openbsd.\n#7 7.593 Preparing to unpack .../08-netcat-openbsd_1.226-1ubuntu2_amd64.deb ...\n#7 7.594 Unpacking netcat-openbsd (1.226-1ubuntu2) ...\n#7 7.610 Selecting previously unselected package libnghttp2-14:amd64.\n#7 7.612 Preparing to unpack .../09-libnghttp2-14_1.59.0-1ubuntu0.4_amd64.deb ...\n#7 7.613 Unpacking libnghttp2-14:amd64 (1.59.0-1ubuntu0.4) ...\n#7 7.629 Selecting previously unselected package libpsl5t64:amd64.\n#7 7.630 Preparing to unpack .../10-libpsl5t64_0.21.2-1.1build1_amd64.deb ...\n#7 7.631 Unpacking libpsl5t64:amd64 (0.21.2-1.1build1) ...\n#7 7.648 Selecting previously unselected package libbrotli1:amd64.\n#7 7.649 Preparing to unpack .../11-libbrotli1_1.1.0-2build2_amd64.deb ...\n#7 7.650 Unpacking libbrotli1:amd64 (1.1.0-2build2) ...\n#7 7.670 Selecting previously unselected package libsasl2-modules-db:amd64.\n#7 7.672 Preparing to unpack .../12-libsasl2-modules-db_2.1.28+dfsg1-5ubuntu3.1_amd64.deb ...\n#7 7.673 Unpacking libsasl2-modules-db:amd64 (2.1.28+dfsg1-5ubuntu3.1) ...\n#7 7.688 Selecting previously unselected package libsasl2-2:amd64.\n#7 7.689 Preparing to unpack .../13-libsasl2-2_2.1.28+dfsg1-5ubuntu3.1_amd64.deb ...\n#7 7.690 Unpacking libsasl2-2:amd64 (2.1.28+dfsg1-5ubuntu3.1) ...\n#7 7.707 Selecting previously unselected package libldap2:amd64.\n#7 7.708 Preparing to unpack .../14-libldap2_2.6.10+dfsg-0ubuntu0.24.04.1_amd64.deb ...\n#7 7.709 Unpacking libldap2:amd64 (2.6.10+dfsg-0ubuntu0.24.04.1) ...\n#7 7.728 Selecting previously unselected package librtmp1:amd64.\n#7 7.729 Preparing to unpack .../15-librtmp1_2.4+20151223.gitfa8646d.1-2build7_amd64.deb ...\n#7 7.730 Unpacking librtmp1:amd64 (2.4+20151223.gitfa8646d.1-2build7) ...\n#7 7.747 Selecting previously unselected package libssh-4:amd64.\n#7 7.748 Preparing to unpack .../16-libssh-4_0.10.6-2ubuntu0.5_amd64.deb ...\n#7 7.749 Unpacking libssh-4:amd64 (0.10.6-2ubuntu0.5) ...\n#7 7.766 Selecting previously unselected package libcurl4t64:amd64.\n#7 7.767 Preparing to unpack .../17-libcurl4t64_8.5.0-2ubuntu10.13_amd64.deb ...\n#7 7.769 Unpacking libcurl4t64:amd64 (8.5.0-2ubuntu10.13) ...\n#7 7.788 Selecting previously unselected package curl.\n#7 7.788 Preparing to unpack .../18-curl_8.5.0-2ubuntu10.13_amd64.deb ...\n#7 7.790 Unpacking curl (8.5.0-2ubuntu10.13) ...\n#7 7.812 Setting up libkeyutils1:amd64 (1.6.3-3build1) ...\n#7 7.815 Setting up libbrotli1:amd64 (1.1.0-2build2) ...\n#7 7.818 Setting up libpsl5t64:amd64 (0.21.2-1.1build1) ...\n#7 7.820 Setting up libnghttp2-14:amd64 (1.59.0-1ubuntu0.4) ...\n#7 7.823 Setting up libkrb5support0:amd64 (1.20.1-6ubuntu2.10) ...\n#7 7.825 Setting up libsasl2-modules-db:amd64 (2.1.28+dfsg1-5ubuntu3.1) ...\n#7 7.828 Setting up librtmp1:amd64 (2.4+20151223.gitfa8646d.1-2build7) ...\n#7 7.831 Setting up libk5crypto3:amd64 (1.20.1-6ubuntu2.10) ...\n#7 7.833 Setting up libsasl2-2:amd64 (2.1.28+dfsg1-5ubuntu3.1) ...\n#7 7.836 Setting up libkrb5-3:amd64 (1.20.1-6ubuntu2.10) ...\n#7 7.839 Setting up openssl (3.0.13-0ubuntu3.15) ...\n#7 7.846 Setting up libbsd0:amd64 (0.12.1-1build1.1) ...\n#7 7.848 Setting up libldap2:amd64 (2.6.10+dfsg-0ubuntu0.24.04.1) ...\n#7 7.851 Setting up netcat-openbsd (1.226-1ubuntu2) ...\n#7 7.855 update-alternatives: using /bin/nc.openbsd to provide /bin/nc (nc) in auto mode\n#7 7.856 update-alternatives: warning: skip creation of /usr/share/man/man1/nc.1.gz because associated file /usr/share/man/man1/nc_openbsd.1.gz (of link group nc) doesn't exist\n#7 7.856 update-alternatives: warning: skip creation of /usr/share/man/man1/netcat.1.gz because associated file /usr/share/man/man1/nc_openbsd.1.gz (of link group nc) doesn't exist\n#7 7.859 Setting up ca-certificates (20260601~24.04.1) ...\n#7 7.951 debconf: unable to initialize frontend: Dialog\n#7 7.951 debconf: (TERM is not set, so the dialog frontend is not usable.)\n#7 7.951 debconf: falling back to frontend: Readline\n#7 7.951 debconf: unable to initialize frontend: Readline\n#7 7.951 debconf: (Can't locate Term/ReadLine.pm in @INC (you may need to install the Term::ReadLine module) (@INC entries checked: /etc/perl /usr/local/lib/x86_64-linux-gnu/perl/5.38.2 /usr/local/share/perl/5.38.2 /usr/lib/x86_64-linux-gnu/perl5/5.38 /usr/share/perl5 /usr/lib/x86_64-linux-gnu/perl-base /usr/lib/x86_64-linux-gnu/perl/5.38 /usr/share/perl/5.38 /usr/local/lib/site_perl) at /usr/share/perl5/Debconf/FrontEnd/Readline.pm line 8.)\n#7 7.951 debconf: falling back to frontend: Teletype\n#7 8.348 Updating certificates in /etc/ssl/certs...\n#7 8.904 121 added, 0 removed; done.\n#7 8.992 Setting up libgssapi-krb5-2:amd64 (1.20.1-6ubuntu2.10) ...\n#7 8.996 Setting up libssh-4:amd64 (0.10.6-2ubuntu0.5) ...\n#7 8.999 Setting up libcurl4t64:amd64 (8.5.0-2ubuntu10.13) ...\n#7 9.002 Setting up curl (8.5.0-2ubuntu10.13) ...\n#7 9.004 Processing triggers for libc-bin (2.39-0ubuntu8.9) ...\n#7 9.018 Processing triggers for ca-certificates (20260601~24.04.1) ...\n#7 9.022 Updating certificates in /etc/ssl/certs...\n#7 9.457 0 added, 0 removed; done.\n#7 9.457 Running hooks in /etc/ca-certificates/update.d...\n#7 9.461 done.\n#7 DONE 9.8s\n\n#8 [builder 1/7] FROM docker.io/nixos/nix:2.34.1@sha256:1d59121e0c361076b4f23c158d236702f2f045b3b477b51075b81ceb6188d34a\n#8 extracting sha256:729d6da1079bb4884228cc74751922ecb903ff2c6e698f2484f083e1e2314c5c 6.7s\n#8 extracting sha256:729d6da1079bb4884228cc74751922ecb903ff2c6e698f2484f083e1e2314c5c 12.0s\n#8 extracting sha256:729d6da1079bb4884228cc74751922ecb903ff2c6e698f2484f083e1e2314c5c 17.7s\n#8 extracting sha256:729d6da1079bb4884228cc74751922ecb903ff2c6e698f2484f083e1e2314c5c 20.9s done\n#8 extracting sha256:47008ba74f8695520964c83b6d7ab5e7a4d967316c08abb59e9d47168638821b\n#8 extracting sha256:47008ba74f8695520964c83b6d7ab5e7a4d967316c08abb59e9d47168638821b 0.0s done\n#8 extracting sha256:3e645d551f0552df3d9ed35a525ab8ca247c4453655a3e7f1323be53df4446f6\n#8 extracting sha256:3e645d551f0552df3d9ed35a525ab8ca247c4453655a3e7f1323be53df4446f6 done\n#8 DONE 28.9s\n\n#9 [builder 2/7] RUN echo \"experimental-features = nix-command flakes\" >> /etc/nix/nix.conf\n#9 DONE 0.1s\n\n#10 [builder 3/7] WORKDIR /app\n#10 DONE 0.0s\n\n#11 [builder 4/7] RUN nix build 'github:logos-co/logos-logoscore-cli/8720885dd821cd63eb1da00c842328cbfd1fe5fa#cli-appimage' --out-link ./logoscore --refresh\n#11 0.153 unpacking 'github:logos-co/logos-logoscore-cli/8720885dd821cd63eb1da00c842328cbfd1fe5fa' into the Git cache...\n#11 11.29 unpacking 'github:logos-co/logos-cpp-sdk/c3fa1b5ad34f2afc113c9d6ca63bc29879d4868e?narHash=sha256-3JvWW9JNHPDHB0FFU75YH%2BayspBV65tCjl08NtBp8h0%3D' into the Git cache...\n#11 22.29 warning: unable to download 'https://github.com/logos-co/logos-cpp-sdk/archive/c3fa1b5ad34f2afc113c9d6ca63bc29879d4868e.tar.gz': HTTP error 504\n#11 22.29 \n#11 22.29 response body:\n#11 22.29 \n#11 22.29 <html><body><h1>504 Gateway Time-out<\/h1>\n#11 22.29 The server didn't respond in time.\n#11 22.29 <\/body><\/html>; retrying in 306 ms (attempt 1/5)\n#11 22.61 warning: unable to download 'https://github.com/logos-co/logos-cpp-sdk/archive/c3fa1b5ad34f2afc113c9d6ca63bc29879d4868e.tar.gz': HTTP error 504\n#11 22.61 \n#11 22.61 response body:\n#11 22.61 \n#11 22.61 <html><body><h1>504 Gateway Time-out<\/h1>\n#11 22.61 The server didn't respond in time.\n#11 22.61 <\/body><\/html>; retrying in 513 ms (attempt 2/5)\n#11 23.12 warning: unable to download 'https://github.com/logos-co/logos-cpp-sdk/archive/c3fa1b5ad34f2afc113c9d6ca63bc29879d4868e.tar.gz': HTTP error 504\n#11 23.12 \n#11 23.12 response body:\n#11 23.12 \n#11 23.12 <html><body><h1>504 Gateway Time-out<\/h1>\n#11 23.12 The server didn't respond in time.\n#11 23.12 <\/body><\/html>; retrying in 1367 ms (attempt 3/5)\n#11 24.50 warning: unable to download 'https://github.com/logos-co/logos-cpp-sdk/archive/c3fa1b5ad34f2afc113c9d6ca63bc29879d4868e.tar.gz': HTTP error 504\n#11 24.50 \n#11 24.50 response body:\n#11 24.50 \n#11 24.50 <html><body><h1>504 Gateway Time-out<\/h1>\n#11 24.50 The server didn't respond in time.\n#11 24.50 <\/body><\/html>; retrying in 2306 ms (attempt 4/5)\n#11 26.81 error:\n#11 26.81        \u2026 while updating the lock file of flake 'github:logos-co/logos-logoscore-cli/8720885dd821cd63eb1da00c842328cbfd1fe5fa?narHash=sha256-z89%2Bf9ZZXGy2DnXp8awr4WpDToPXb4Kq27Fnr4Z2dYo%3D'\n#11 26.81 \n#11 26.81        \u2026 while updating the flake input 'logos-cpp-sdk'\n#11 26.81 \n#11 26.81        \u2026 while fetching the input 'github:logos-co/logos-cpp-sdk/c3fa1b5ad34f2afc113c9d6ca63bc29879d4868e?narHash=sha256-3JvWW9JNHPDHB0FFU75YH%2BayspBV65tCjl08NtBp8h0%3D'\n#11 26.81 \n#11 26.81        error: Failed to open archive (Source threw exception: error: unable to download 'https://github.com/logos-co/logos-cpp-sdk/archive/c3fa1b5ad34f2afc113c9d6ca63bc29879d4868e.tar.gz': HTTP error 504\n#11 26.81 \n#11 26.81               response body:\n#11 26.81 \n#11 26.81               <html><body><h1>504 Gateway Time-out<\/h1>\n#11 26.81               The server didn't respond in time.\n#11 26.81               <\/body><\/html>)\n#11 ERROR: process \"/bin/sh -c nix build 'github:logos-co/logos-logoscore-cli/8720885dd821cd63eb1da00c842328cbfd1fe5fa#cli-appimage' --out-link ./logoscore --refresh\" did not complete successfully: exit code: 1\n------\n > [builder 4/7] RUN nix build 'github:logos-co/logos-logoscore-cli/8720885dd821cd63eb1da00c842328cbfd1fe5fa#cli-appimage' --out-link ./logoscore --refresh:\n26.81 \n26.81        \u2026 while fetching the input 'github:logos-co/logos-cpp-sdk/c3fa1b5ad34f2afc113c9d6ca63bc29879d4868e?narHash=sha256-3JvWW9JNHPDHB0FFU75YH%2BayspBV65tCjl08NtBp8h0%3D'\n26.81 \n26.81        error: Failed to open archive (Source threw exception: error: unable to download 'https://github.com/logos-co/logos-cpp-sdk/archive/c3fa1b5ad34f2afc113c9d6ca63bc29879d4868e.tar.gz': HTTP error 504\n26.81 \n26.81               response body:\n26.81 \n26.81               <html><body><h1>504 Gateway Time-out<\/h1>\n26.81               The server didn't respond in time.\n26.81               <\/body><\/html>)\n------\nDockerfile:6\n--------------------\n   4 |     WORKDIR /app\n   5 |     \n   6 | >>> RUN nix build 'github:logos-co/logos-logoscore-cli/8720885dd821cd63eb1da00c842328cbfd1fe5fa#cli-appimage' --out-link ./logoscore --refresh\n   7 |     RUN nix build 'github:logos-co/logos-package-manager/202af6fa0f0f4493bc59c8a609dff9326f78a18d#cli-appimage' --out-link ./package-manager --refresh\n   8 |     RUN nix build 'github:logos-co/logos-package-downloader/02503323b46ec35148ad00cd636d46ac8f2506b5#cli-appimage' --out-link ./package-downloader --refresh\n--------------------\nERROR: failed to build: failed to solve: process \"/bin/sh -c nix build 'github:logos-co/logos-logoscore-cli/8720885dd821cd63eb1da00c842328cbfd1fe5fa#cli-appimage' --out-link ./logoscore --refresh\" did not complete successfully: exit code: 1\n", "status": "fail"}, {"cmd": "docker image inspect logos:doctest --format '{{.Os}}/{{.Architecture}}'", "exit_code": 1, "kind": "run", "note": "exit code 1", "output": "\nError response from daemon: No such image: logos:doctest\n", "status": "fail"}], "md": "### 1.1 Build the image\n\nBuild from the repo URL (the same command the README documents). The\ndoc-test runner pins the ref to the commit under test via\n`$LOGOS_DOCKER_REF`.\n\n```bash\ndocker build -t logos https://github.com/logos-co/logos-docker.git\n```\n\nConfirm the image was built (it's a Linux image):\n\n```bash\ndocker image inspect logos --format '{{.Os}}/{{.Architecture}}'\n```"}, {"execs": [{"cmd": "docker run -d -p 9090:9090 --name logos-doctest logos:doctest", "exit_code": 125, "kind": "run", "note": "exit code 125", "output": "Unable to find image 'logos:doctest' locally\ndocker: Error response from daemon: pull access denied for logos, repository does not exist or may require 'docker login': denied: requested access to the resource is denied\n\nRun 'docker run --help' for more information\n", "status": "fail"}], "md": "### 1.2 Run the container with the OpenMetrics port published\n\nRun it detached (`-d`) and publish the port `openmetrics` will listen on\n(`-p 9090:9090`) so the endpoint is reachable from the host. The daemon\nstarts via the image's `CMD`.\n\n```bash\ndocker run -d -p 9090:9090 --name logos logos\n```"}, {"execs": [{"cmd": "sleep 5", "exit_code": 0, "kind": "run", "note": "", "output": "", "status": "pass"}], "md": "```bash\nsleep 5\n```"}, {"execs": [{"cmd": "docker exec logos-doctest logoscore --config-dir /var/lib/logos/config status", "exit_code": 1, "kind": "run", "note": "exit code 1", "output": "Error response from daemon: No such container: logos-doctest\n", "status": "fail"}], "md": "### 1.3 Confirm the daemon is up\n\n```bash\ndocker exec logos logoscore --config-dir /var/lib/logos/config status\n```"}, {"execs": [], "md": "## Step 2: Load the modules\n\nThe modules ship pre-installed under `/home/ubuntu/modules`. Loading a\nmodule makes it live in the running daemon (dependencies are resolved\nautomatically)."}, {"execs": [{"cmd": "docker exec logos-doctest lgpm --modules-dir /home/ubuntu/modules list", "exit_code": 1, "kind": "run", "note": "exit code 1", "output": "Error response from daemon: No such container: logos-doctest\n", "status": "fail"}], "md": "### 2.1 List what's installed\n\n```bash\ndocker exec logos lgpm --modules-dir /home/ubuntu/modules list\n```"}, {"execs": [{"cmd": "docker exec logos-doctest logoscore --config-dir /var/lib/logos/config load-module delivery_module\ndocker exec logos-doctest logoscore --config-dir /var/lib/logos/config load-module storage_module\ndocker exec logos-doctest logoscore --config-dir /var/lib/logos/config load-module blockchain_module\n", "exit_code": 1, "kind": "run", "note": "exit code 1", "output": "Error response from daemon: No such container: logos-doctest\nError response from daemon: No such container: logos-doctest\nError response from daemon: No such container: logos-doctest\n", "status": "fail"}], "md": "### 2.2 Load the bundled modules\n\n```bash\ndocker exec logos logoscore --config-dir /var/lib/logos/config load-module delivery_module\ndocker exec logos logoscore --config-dir /var/lib/logos/config load-module storage_module\ndocker exec logos logoscore --config-dir /var/lib/logos/config load-module blockchain_module\n```"}, {"execs": [], "md": "## Step 3: Initialize OpenMetrics\n\nLoad the `openmetrics` module, then `start` its HTTP server with a config\nJSON: the port to listen on and the modules to scrape. The JSON is passed as\na single argument so it reaches the module intact."}, {"execs": [{"cmd": "docker exec logos-doctest logoscore --config-dir /var/lib/logos/config load-module openmetrics", "exit_code": 1, "kind": "run", "note": "exit code 1", "output": "Error response from daemon: No such container: logos-doctest\n", "status": "fail"}], "md": "### 3.1 Load the openmetrics module\n\n```bash\ndocker exec logos logoscore --config-dir /var/lib/logos/config load-module openmetrics\n```"}, {"execs": [{"cmd": "docker exec logos-doctest logoscore --config-dir /var/lib/logos/config call openmetrics start '{\"port\":9090,\"modules\":[\"delivery_module\",\"storage_module\",\"blockchain_module\"]}'\n", "exit_code": 1, "kind": "run", "note": "exit code 1", "output": "Error response from daemon: No such container: logos-doctest\n", "status": "fail"}], "md": "### 3.2 Start the OpenMetrics server\n\nBind it to `9090` \u2014 the port we published \u2014 so the endpoint is reachable\nfrom the host. `start` returns `1` on success.\n\n```bash\ndocker exec logos logoscore --config-dir /var/lib/logos/config call openmetrics start '{\"port\":9090,\"modules\":[\"delivery_module\",\"storage_module\",\"blockchain_module\"]}'\n```"}, {"execs": [{"cmd": "sleep 1", "exit_code": 0, "kind": "run", "note": "", "output": "", "status": "pass"}], "md": "```bash\nsleep 1\n```"}, {"execs": [{"cmd": "docker exec logos-doctest logoscore --config-dir /var/lib/logos/config call openmetrics getInfo", "exit_code": 1, "kind": "run", "note": "exit code 1", "output": "Error response from daemon: No such container: logos-doctest\n", "status": "fail"}], "md": "### 3.3 getInfo reports what it's serving\n\n`getInfo()` returns its status as a JSON string, so `logoscore` delivers\nit as an escaped string inside the `result` field.\n\n```bash\ndocker exec logos logoscore --config-dir /var/lib/logos/config call openmetrics getInfo\n```"}, {"execs": [], "md": "## Step 4: Scrape /metrics from the host\n\nBecause the port is published, Prometheus \u2014 or a plain `curl` from the host\n\u2014 can scrape the endpoint without entering the container."}, {"execs": [{"cmd": "curl -s --max-time 15 http://localhost:9090/metrics", "exit_code": 7, "kind": "run", "note": "exit code 7", "output": "", "status": "fail"}], "md": "### 4.1 Scrape /metrics\n\nThe document is valid OpenMetrics and ends with `# EOF`. There are no\nseries yet because none of the bundled modules implement\n`collectMetrics()` \u2014 once one does, its series appear here automatically.\n\n```bash\ncurl http://localhost:9090/metrics\n```"}, {"execs": [{"cmd": "curl -s --max-time 5 http://localhost:9090/health", "exit_code": 7, "kind": "run", "note": "exit code 7", "output": "", "status": "fail"}], "md": "### 4.2 Check /health\n\n```bash\ncurl http://localhost:9090/health\n```"}, {"execs": [], "md": "## Step 5: Clean up\n\nStop and remove the container (this also stops the daemon and the\nOpenMetrics server inside it)."}, {"execs": [{"cmd": "docker rm -f logos-doctest", "exit_code": 0, "kind": "run", "note": "", "output": "Error response from daemon: No such container: logos-doctest\n", "status": "pass"}], "md": "### 5.1 Remove the container\n\n```bash\ndocker rm -f logos\n```"}, {"execs": [], "md": "## Recap\n\n| Step | Command | What it proves |\n| ---- | ------- | -------------- |\n| Build & run | `docker build` / `docker run -d -p 9090:9090` | the image builds and the daemon comes up with the metrics port published |\n| Load | `logoscore --config-dir /var/lib/logos/config load-module <name>` | the bundled modules load into the running daemon |\n| Initialize | `logoscore --config-dir /var/lib/logos/config call openmetrics start '{\u2026}'` | `openmetrics` stands up its HTTP server on the published port |\n| Scrape | `curl http://localhost:9090/metrics` | the endpoint is reachable from outside the container and serves valid OpenMetrics |\n\nThe `openmetrics` endpoint is now reachable from the host on `:9090`. Point a\nPrometheus scrape at it, and as the bundled modules grow `collectMetrics()`\nimplementations their series will show up automatically, each labelled with\n`module=\"<name>\"`."}]}], "version": 1}</script>
+<script>
+  const DATA = JSON.parse(document.getElementById("report-data").textContent);
+  if (window.marked) { marked.setOptions({ gfm: true, breaks: false }); }
+  const mdToHtml = (s) => window.marked ? marked.parse(s || "") : ("<pre>" + (s || "") + "</pre>");
+
+  const sum = DATA.summary;
+  document.getElementById("summary").innerHTML =
+    `<span class="pill pass">${sum.passed} passed</span> ` +
+    (sum.failed ? `<span class="pill fail">${sum.failed} failed</span> ` : "") +
+    (sum.skipped ? `<span class="pill skip">${sum.skipped} skipped</span>` : "");
+
+  const picker = document.getElementById("picker");
+  DATA.tutorials.forEach((t, i) => {
+    const o = document.createElement("option");
+    o.value = i; o.textContent = t.meta.name; picker.appendChild(o);
+  });
+
+  function execHtml(e) {
+    const badge = `<span class="badge ${e.status}">${e.status.toUpperCase()}</span>`;
+    const kind = `<span class="kind">${e.kind}${e.platform ? " · " + e.platform : ""}${e.exit_code !== undefined ? " · exit " + e.exit_code : ""}</span>`;
+    let h = `<div class="exec"><div class="exec-head">${badge}${kind}</div>`;
+    if (e.note) h += `<div class="note">${escapeHtml(e.note)}</div>`;
+    if (e.cmd) h += `<pre class="cmd">${escapeHtml(e.cmd)}</pre>`;
+    const out = (e.output || "").trim();
+    if (out) {
+      const long = out.split("\n").length > 12;
+      if (long) {
+        h += `<details><summary>output (${out.split("\n").length} lines)</summary><pre class="output">${escapeHtml(out)}</pre></details>`;
+      } else {
+        h += `<pre class="output">${escapeHtml(out)}</pre>`;
+      }
+    }
+    h += `</div>`;
+    return h;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  }
+
+  function render(idx) {
+    const t = DATA.tutorials[idx];
+    const main = document.getElementById("main");
+    main.innerHTML = "";
+    const h = document.createElement("div");
+    h.className = "tutorial-title";
+    h.textContent = t.meta.name + "  —  " + t.meta.platform;
+    main.appendChild(h);
+
+    t.rows.forEach(row => {
+      const isStructural = row.execs.length === 0 &&
+        (/^#\s|^##\s/.test(row.md.trim()));
+      const div = document.createElement("div");
+      const hasExec = row.execs.length > 0;
+      const hasFail = row.execs.some(e => e.status === "fail");
+      div.className = "row" + (hasExec ? "" : (isStructural ? " section" : " preamble")) +
+        (hasFail ? " has-fail" : "");
+
+      const left = document.createElement("div");
+      left.className = "col left";
+      left.innerHTML = `<div class="md">${mdToHtml(row.md)}</div>`;
+      div.appendChild(left);
+
+      if (hasExec || !isStructural) {
+        const right = document.createElement("div");
+        right.className = "col right";
+        if (hasExec) {
+          right.innerHTML = `<div class="col-label">Executed</div>` +
+            row.execs.map(execHtml).join("");
+        } else {
+          right.innerHTML = `<div class="col-label">Executed</div>` +
+            `<div class="empty">No commands run for this step.</div>`;
+        }
+        div.appendChild(right);
+      }
+      main.appendChild(div);
+    });
+
+    addAnchors(main, slug(t.meta.name));
+  }
+
+  function slug(s) {
+    return String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  }
+
+  // Octicon "link" — the same glyph GitHub puts next to markdown headings.
+  const LINK_ICON =
+    '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d=' +
+    '"M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 ' +
+    '.75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 ' +
+    '9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 ' +
+    '2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg>';
+
+  // Give every heading a stable slug id (deduplicated the way GitHub does, with
+  // -1/-2 suffixes) and a permalink whose href is "#<tutorial>/<heading>".
+  function addAnchors(container, tutSlug) {
+    const used = new Map();
+    const nodes = container.querySelectorAll(
+      ".tutorial-title, .md h1, .md h2, .md h3, .md h4, .md h5, .md h6"
+    );
+    nodes.forEach(node => {
+      const text = node.textContent.trim();
+      const isTitle = node.classList.contains("tutorial-title");
+      let href = "#" + tutSlug;
+      if (!isTitle) {
+        const base = slug(text) || "section";
+        const n = (used.get(base) || 0) + 1;
+        used.set(base, n);
+        node.id = n > 1 ? base + "-" + n : base;
+        href += "/" + node.id;
+      }
+      node.classList.add("heading-anchored");
+      const a = document.createElement("a");
+      a.className = "anchor";
+      a.href = href;
+      a.title = "Copy link to this section";
+      a.setAttribute("aria-label", "Permalink: " + text);
+      a.innerHTML = LINK_ICON;
+      node.insertBefore(a, node.firstChild);
+    });
+  }
+
+  let toastTimer = null;
+  function toast(msg) {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove("show"), 1600);
+  }
+
+  // navigator.clipboard needs a secure context; reports are often opened over
+  // file://, so fall back to the old execCommand path there.
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(
+        () => toast("Link copied"),
+        () => toast(text)
+      );
+      return;
+    }
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    toast(ok ? "Link copied" : text);
+  }
+
+  function scrollToId(id) {
+    if (!id) { window.scrollTo(0, 0); return; }
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ block: "start" });
+    el.classList.remove("flash");
+    void el.offsetWidth;  // restart the animation on a repeat click
+    el.classList.add("flash");
+  }
+
+  document.addEventListener("click", ev => {
+    const a = ev.target.closest && ev.target.closest("a.anchor");
+    if (!a) return;
+    ev.preventDefault();
+    const href = a.getAttribute("href");
+    copyText(location.href.split("#")[0] + href);
+    if (location.hash === href) scrollToId(a.parentNode.id);
+    else location.hash = href;  // hashchange scrolls
+  });
+
+  // "#<tutorial>" (name, slug, or index) optionally followed by "/<heading>".
+  function parseHash() {
+    const raw = decodeURIComponent(location.hash.replace(/^#/, ""));
+    if (!raw) return { idx: 0, frag: "" };
+    const cut = raw.indexOf("/");
+    const tut = cut >= 0 ? raw.slice(0, cut) : raw;
+    const frag = cut >= 0 ? raw.slice(cut + 1) : "";
+    if (/^\d+$/.test(tut) && +tut < DATA.tutorials.length) return { idx: +tut, frag };
+    const i = DATA.tutorials.findIndex(
+      t => slug(t.meta.name) === tut || t.meta.name === tut
+    );
+    if (i >= 0) return { idx: i, frag };
+    // No tutorial matched: treat a bare hash as a heading in the current one.
+    return { idx: currentIdx >= 0 ? currentIdx : 0, frag: cut >= 0 ? frag : raw };
+  }
+
+  let currentIdx = -1;
+  function show(idx, frag) {
+    if (idx !== currentIdx) {
+      picker.value = idx;
+      render(idx);
+      currentIdx = idx;
+    }
+    if (frag) requestAnimationFrame(() => scrollToId(frag));
+  }
+  picker.addEventListener("change", () => {
+    location.hash = slug(DATA.tutorials[+picker.value].meta.name);
+    show(+picker.value);
+  });
+  window.addEventListener("hashchange", () => {
+    const h = parseHash();
+    show(h.idx, h.frag);
+  });
+  const initial = parseHash();
+  show(initial.idx, initial.frag);
+  // Inlined screenshots have no intrinsic size until decoded, so the first
+  // scroll can land short; re-anchor once everything has loaded.
+  if (initial.frag) {
+    window.addEventListener("load", () => scrollToId(initial.frag), { once: true });
+  }
+</script>
+</body>
+</html>
