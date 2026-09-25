@@ -4,8 +4,8 @@ RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
 WORKDIR /app
 
 RUN nix build 'github:logos-co/logos-logoscore-cli/8720885dd821cd63eb1da00c842328cbfd1fe5fa#cli-appimage' --out-link ./logoscore --refresh
-RUN nix build 'github:logos-co/logos-package-manager/202af6fa0f0f4493bc59c8a609dff9326f78a18d#cli-appimage' --out-link ./package-manager --refresh
-RUN nix build 'github:logos-co/logos-package-downloader/02503323b46ec35148ad00cd636d46ac8f2506b5#cli-appimage' --out-link ./package-downloader --refresh
+RUN nix build 'github:logos-co/logos-package-manager/2c56ec7bf1e187523d6ed0cb2abde04737c24414#cli-appimage' --out-link ./package-manager --refresh
+RUN nix build 'github:logos-co/logos-package-downloader/9fc7d17650e30a1e2315d98283bc46fb3a3ee8b9#cli-appimage' --out-link ./package-downloader --refresh
 
 RUN mkdir -p /app-final/logos \
     && cp -rL ./logoscore/* /app-final/logos/ \
