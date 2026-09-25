@@ -1,19 +1,25 @@
+# Stage 1: Build
+FROM nixos/nix:2.34.1 AS builder
+RUN printf '%s\n' \
+        'experimental-features = nix-command flakes' \
+        'extra-substituters = https://cache.nix.logos.co/public' \
+        'extra-trusted-public-keys = public:l4HrXgL4nw246+LBh2SOJyhz64BoGegOYLheT/iIAPU=' \
+        'fallback = true' \
+    >> /etc/nix/nix.conf
+WORKDIR /app
+
+# release/0.3.0
+ARG LOGOSCTL_REF=d9eb3ba89923c90452a3bebb36eccc09809c3062
+RUN nix build "github:logos-co/logos-logoscore-cli/${LOGOSCTL_REF}#ctl-appimage" --out-link ./result \
+    && ./result/logosctl.AppImage --appimage-extract > /dev/null \
+    && mv squashfs-root logosctl
+
+# Stage 2: Runtime
 FROM ubuntu:24.04
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl netcat-openbsd && rm -rf /var/lib/apt/lists/*
 
-ARG LOGOSCTL_VERSION=0.3.0
-ARG TARGETARCH
-RUN case "${TARGETARCH:-$(dpkg --print-architecture)}" in \
-        amd64) arch=x86_64 ;; \
-        arm64) arch=aarch64 ;; \
-        *) echo "unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
-    esac \
-    && mkdir -p /app && cd /app \
-    && curl -fsSL "https://github.com/logos-co/logos-logoscore-cli/releases/download/${LOGOSCTL_VERSION}/logosctl-${arch}-linux.tar.gz" | tar -xz \
-    && "./logosctl-${arch}.AppImage" --appimage-extract > /dev/null \
-    && mv squashfs-root logosctl \
-    && rm "logosctl-${arch}.AppImage" \
-    && ln -s /app/logosctl/AppRun /usr/local/bin/logosctl
+COPY --from=builder /app/logosctl /app/logosctl
+RUN ln -s /app/logosctl/AppRun /usr/local/bin/logosctl
 
 RUN mkdir -p /var/lib/logos/blockchain /var/lib/logos/persistence \
     && usermod -u 10000 ubuntu && groupmod -g 10000 ubuntu \
