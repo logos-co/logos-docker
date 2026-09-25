@@ -30,11 +30,6 @@ pipeline {
 
   parameters {
     string(
-      name: 'LOGOSCTL_VERSION',
-      description: 'logosctl release. Leave empty for default.',
-      defaultValue: ''
-    )
-    string(
       name: 'DELIVERY_VERSION',
       description: 'Delivery module version. Leave empty to exclude.',
       defaultValue: lastParam('DELIVERY_VERSION', '0.3.0')
@@ -127,10 +122,6 @@ def buildArgs() {
   if (params.RLN_VERSION?.trim()) {
     args += "--build-arg RLN_VERSION='${params.RLN_VERSION}' "
     args += "--label=rln='${params.RLN_VERSION}' "
-  }
-  if (params.LOGOSCTL_VERSION?.trim()) {
-    args += "--build-arg LOGOSCTL_VERSION='${params.LOGOSCTL_VERSION}' "
-    args += "--label=logosctl='${params.LOGOSCTL_VERSION}' "
   }
   if (params.MODULES_REPO?.trim()) {
     args += "--build-arg MODULES_REPO='${params.MODULES_REPO}' "
