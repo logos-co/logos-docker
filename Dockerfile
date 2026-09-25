@@ -30,7 +30,7 @@ ARG DELIVERY_VERSION=0.2.1
 ARG STORAGE_VERSION=2.1.3
 ARG BLOCKCHAIN_VERSION=0.2.4
 ARG OPENMETRICS_VERSION=0.1.1
-ARG RLN_VERSION
+ARG RLN_VERSION=0.8.2
 
 ARG MODULES_REPO=https://raw.githubusercontent.com/logos-co/logos-modules-release/refs/heads/main/logos-repo.json
 # Separate catalog until the RLN modules are published to logos-modules-release.

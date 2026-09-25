@@ -52,7 +52,7 @@ pipeline {
     string(
       name: 'RLN_VERSION',
       description: 'RLN module version. Leave empty to exclude.',
-      defaultValue: lastParam('RLN_VERSION', '')
+      defaultValue: lastParam('RLN_VERSION', '0.8.2')
     )
     string(
       name: 'OPENMETRICS_VERSION',

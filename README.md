@@ -31,24 +31,24 @@ pre-installed under `/var/lib/logos/modules`:
 docker exec logos logosctl package ls
 ```
 
-It can also ship [`liblogos_rln_module`](https://github.com/logos-co/logos-rln-modules)
-(RLN membership management). It lives in a separate catalog, which the image
+It also ships [`liblogos_rln_module`](https://github.com/logos-co/logos-rln-modules)
+(RLN membership management) together with its dependency
+`liblogos_lez_rln_module`. They live in a separate catalog, which the image
 registers:
 
 ```bash
 docker exec logos logosctl catalog ls
 ```
 
-Installing it pulls its dependencies in, and loading it loads them too:
+Loading it loads the dependency too:
 
 ```bash
-docker build --build-arg RLN_VERSION=0.8.2 -t logos .
 docker exec logos logosctl module load liblogos_rln_module
 ```
 
 Each module version is a build arg — `DELIVERY_VERSION`, `STORAGE_VERSION`,
 `BLOCKCHAIN_VERSION`, `OPENMETRICS_VERSION`, `RLN_VERSION`. Leave one empty to
-exclude that module. `RLN_VERSION` is empty by default.
+exclude that module.
 
 ## Building against another catalog
 
