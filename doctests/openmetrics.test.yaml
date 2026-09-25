@@ -96,6 +96,7 @@ sections:
           - "delivery_module"
           - "storage_module"
           - "openmetrics"
+          - "liblogos_rln_module"
 
       - title: "Load the bundled modules"
         run: |
