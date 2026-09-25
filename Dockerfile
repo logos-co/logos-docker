@@ -40,13 +40,12 @@ RUN logosctl daemon start --detach \
     && for url in $(logosctl catalog ls | grep -o '"url":"[^"]*"' | cut -d'"' -f4); do \
         [ "${url}" = "${MODULES_REPO}" ] || logosctl catalog disable "${url}"; \
     done \
-    && pkg() { [ -z "$2" ] || logosctl install "$1" --version "$2" -y; } \
-    && pkg delivery_module "${DELIVERY_VERSION}" \
-    && pkg storage_module "${STORAGE_VERSION}" \
-    && pkg blockchain_module "${BLOCKCHAIN_VERSION}" \
-    && pkg openmetrics "${OPENMETRICS_VERSION}" \
-    && pkg liblogos_rln_module "${RLN_VERSION}" \
-    && pkg libp2p_module "${LIBP2P_VERSION}" \
+    && { [ -z "${DELIVERY_VERSION}" ] || logosctl install delivery_module --version "${DELIVERY_VERSION}" -y; } \
+    && { [ -z "${STORAGE_VERSION}" ] || logosctl install storage_module --version "${STORAGE_VERSION}" -y; } \
+    && { [ -z "${BLOCKCHAIN_VERSION}" ] || logosctl install blockchain_module --version "${BLOCKCHAIN_VERSION}" -y; } \
+    && { [ -z "${OPENMETRICS_VERSION}" ] || logosctl install openmetrics --version "${OPENMETRICS_VERSION}" -y; } \
+    && { [ -z "${RLN_VERSION}" ] || logosctl install liblogos_rln_module --version "${RLN_VERSION}" -y; } \
+    && { [ -z "${LIBP2P_VERSION}" ] || logosctl install libp2p_module --version "${LIBP2P_VERSION}" -y; } \
     && logosctl package ls \
     && logosctl daemon stop \
     && while logosctl status > /dev/null 2>&1; do sleep 1; done \
