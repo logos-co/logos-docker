@@ -16,9 +16,8 @@ The default `CMD` is `logosctl daemon start`.
 ## What's inside
 
 The image ships [`logosctl`](https://github.com/logos-co/logos-logoscore-cli/blob/master/docs/logosctl.md)
-on `$PATH` — the Logos module runtime with package management built in. It is
-built with Nix from the `logos-logoscore-cli` commit in the `LOGOSCTL_REF`
-build arg.
+on `$PATH` — the Logos module runtime with package management built in. Its
+release is the `LOGOSCTL_VERSION` build arg.
 
 `LOGOSCTL_CONFIG_DIR` is set to `/var/lib/logos`, so every `logosctl` command,
 including `docker exec`, acts on that session without extra flags. Its daemon
