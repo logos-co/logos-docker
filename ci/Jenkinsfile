@@ -52,7 +52,7 @@ pipeline {
     string(
       name: 'RLN_VERSION',
       description: 'RLN module version. Leave empty to exclude.',
-      defaultValue: lastParam('RLN_VERSION', '0.8.2')
+      defaultValue: lastParam('RLN_VERSION', '')
     )
     string(
       name: 'OPENMETRICS_VERSION',
@@ -62,11 +62,6 @@ pipeline {
     string(
       name: 'MODULES_REPO',
       description: 'Module catalog. Leave empty for default.',
-      defaultValue: ''
-    )
-    string(
-      name: 'RLN_REPO',
-      description: 'RLN module catalog. Leave empty for default.',
       defaultValue: ''
     )
   }
@@ -139,9 +134,6 @@ def buildArgs() {
   }
   if (params.MODULES_REPO?.trim()) {
     args += "--build-arg MODULES_REPO='${params.MODULES_REPO}' "
-  }
-  if (params.RLN_REPO?.trim()) {
-    args += "--build-arg RLN_REPO='${params.RLN_REPO}' "
   }
 
   return args

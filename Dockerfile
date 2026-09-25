@@ -30,22 +30,21 @@ ARG DELIVERY_VERSION=0.2.1
 ARG STORAGE_VERSION=2.1.3
 ARG BLOCKCHAIN_VERSION=0.2.4
 ARG OPENMETRICS_VERSION=0.1.1
-ARG RLN_VERSION=0.8.2
+ARG RLN_VERSION
 
 ARG MODULES_REPO=https://raw.githubusercontent.com/logos-co/logos-modules-release/refs/heads/main/logos-repo.json
-# Separate catalog until the RLN modules are published to logos-modules-release.
-ARG RLN_REPO=https://github.com/logos-co/logos-rln-modules/releases/download/index/logos-repo.json
 
 RUN logosctl daemon start --detach \
-    && for repo in "${MODULES_REPO}" "${RLN_REPO}"; do \
-        logosctl catalog ls | grep -qF "\"url\":\"${repo}\"" || logosctl catalog add "${repo}"; \
+    && { logosctl catalog ls | grep -qF "\"url\":\"${MODULES_REPO}\"" || logosctl catalog add "${MODULES_REPO}"; } \
+    && for url in $(logosctl catalog ls | grep -o '"url":"[^"]*"' | cut -d'"' -f4); do \
+        [ "${url}" = "${MODULES_REPO}" ] || logosctl catalog disable "${url}"; \
     done \
-    && pkg() { [ -z "$2" ] || logosctl install "$1" --version "$2" --catalog "$3" -y; } \
-    && pkg delivery_module "${DELIVERY_VERSION}" "${MODULES_REPO}" \
-    && pkg storage_module "${STORAGE_VERSION}" "${MODULES_REPO}" \
-    && pkg blockchain_module "${BLOCKCHAIN_VERSION}" "${MODULES_REPO}" \
-    && pkg openmetrics "${OPENMETRICS_VERSION}" "${MODULES_REPO}" \
-    && pkg liblogos_rln_module "${RLN_VERSION}" "${RLN_REPO}" \
+    && pkg() { [ -z "$2" ] || logosctl install "$1" --version "$2" -y; } \
+    && pkg delivery_module "${DELIVERY_VERSION}" \
+    && pkg storage_module "${STORAGE_VERSION}" \
+    && pkg blockchain_module "${BLOCKCHAIN_VERSION}" \
+    && pkg openmetrics "${OPENMETRICS_VERSION}" \
+    && pkg liblogos_rln_module "${RLN_VERSION}" \
     && logosctl package ls \
     && logosctl daemon stop \
     && while logosctl status > /dev/null 2>&1; do sleep 1; done \

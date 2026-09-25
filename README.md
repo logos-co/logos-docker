@@ -31,16 +31,9 @@ pre-installed under `/var/lib/logos/modules`:
 docker exec logos logosctl package ls
 ```
 
-It also ships [`liblogos_rln_module`](https://github.com/logos-co/logos-rln-modules)
-(RLN membership management) together with its dependency
-`liblogos_lez_rln_module`. They live in a separate catalog, which the image
-registers:
-
-```bash
-docker exec logos logosctl catalog ls
-```
-
-Loading it loads the dependency too:
+Setting `RLN_VERSION` adds [`liblogos_rln_module`](https://github.com/logos-co/logos-rln-modules)
+(RLN membership management); its dependencies are installed with it, and
+loading it loads them too:
 
 ```bash
 docker exec logos logosctl module load liblogos_rln_module
@@ -48,19 +41,18 @@ docker exec logos logosctl module load liblogos_rln_module
 
 Each module version is a build arg — `DELIVERY_VERSION`, `STORAGE_VERSION`,
 `BLOCKCHAIN_VERSION`, `OPENMETRICS_VERSION`, `RLN_VERSION`. Leave one empty to
-exclude that module.
+exclude that module. `RLN_VERSION` is empty by default.
 
 ## Building against another catalog
 
-`MODULES_REPO` selects the catalog every module is pulled from, and `RLN_REPO`
-the one the RLN module comes from. Point either at
+`MODULES_REPO` selects the catalog every module is pulled from; it is the only
+catalog left enabled in the image. Point it at
 [`logos-modules-dev`](https://github.com/logos-co/logos-modules-dev), which
 publishes one build per commit, to get a continuous build instead of a release:
 
 ```bash
 docker build \
   --build-arg MODULES_REPO=https://raw.githubusercontent.com/logos-co/logos-modules-dev/refs/heads/main/logos-repo.json \
-  --build-arg RLN_REPO=https://raw.githubusercontent.com/logos-co/logos-modules-dev/refs/heads/main/logos-repo.json \
   -t logos .
 ```
 
