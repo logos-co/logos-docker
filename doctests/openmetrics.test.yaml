@@ -38,16 +38,16 @@ what_you_learn:
 prerequisites:
   - "**Docker** — to build and run the image."
   - "**curl** — to scrape the published endpoint from the host."
-  - "A network connection — the build downloads the `logosctl` release and the module packages."
+  - "A network connection — the first build downloads the Nix builder layer and builds `logosctl`, which can take several minutes."
 
 sections:
   - title: "Build and run the image"
     step: true
     text: |
-      The image is built straight from this repo. The Dockerfile extracts the
-      released `logosctl` AppImage onto an `ubuntu` base, then starts a
-      throwaway daemon to install the pinned module versions with
-      `logosctl install`. The default `CMD` is `logosctl daemon start`, with
+      The image is built straight from this repo. The Dockerfile is a
+      multi-stage build: a `nixos/nix` stage builds `logosctl` as an AppImage,
+      and an `ubuntu` stage extracts it, then starts a throwaway daemon to
+      install the pinned module versions with `logosctl install`. The default `CMD` is `logosctl daemon start`, with
       `LOGOSCTL_CONFIG_DIR=/var/lib/logos` selecting the session.
     steps:
       - title: "Build the image"
