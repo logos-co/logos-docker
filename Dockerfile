@@ -12,8 +12,8 @@ RUN case "${TARGETARCH:-$(dpkg --print-architecture)}" in \
     && curl -fsSL "https://github.com/logos-co/logos-logoscore-cli/releases/download/${LOGOSCTL_VERSION}/logosctl-${arch}-linux.tar.gz" | tar -xz \
     && "./logosctl-${arch}.AppImage" --appimage-extract > /dev/null \
     && mv squashfs-root logosctl \
-    && rm "logosctl-${arch}.AppImage" \
-    && ln -s /app/logosctl/AppRun /usr/local/bin/logosctl
+    && rm "logosctl-${arch}.AppImage"
+RUN ln -s /app/logosctl/AppRun /usr/local/bin/logosctl
 
 RUN mkdir -p /var/lib/logos/blockchain /var/lib/logos/persistence \
     && usermod -u 10000 ubuntu && groupmod -g 10000 ubuntu \
