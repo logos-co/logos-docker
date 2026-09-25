@@ -1,67 +1,54 @@
-# Stage 1: Build
-FROM nixos/nix:2.34.1 AS builder
-RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
-WORKDIR /app
-
-RUN nix build 'github:logos-co/logos-logoscore-cli/8720885dd821cd63eb1da00c842328cbfd1fe5fa#cli-appimage' --out-link ./logoscore --refresh
-RUN nix build 'github:logos-co/logos-package-manager/202af6fa0f0f4493bc59c8a609dff9326f78a18d#cli-appimage' --out-link ./package-manager --refresh
-RUN nix build 'github:logos-co/logos-package-downloader/02503323b46ec35148ad00cd636d46ac8f2506b5#cli-appimage' --out-link ./package-downloader --refresh
-
-RUN mkdir -p /app-final/logos \
-    && cp -rL ./logoscore/* /app-final/logos/ \
-    && cp -rL ./package-manager/* /app-final/logos/ \
-    && cp -rL ./package-downloader/* /app-final/logos/
-
-# Stage 2: Runtime
 FROM ubuntu:24.04
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl netcat-openbsd && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app-final/logos /app/logos
-RUN cd /app/logos && for app in logoscore lgpm lgpd; do \
-        chmod a+rx "$app.AppImage" \
-        && "./$app.AppImage" --appimage-extract > /dev/null \
-        && mv squashfs-root "$app" \
-        && rm "$app.AppImage"; \
-    done
-RUN ln -s /app/logos/logoscore/AppRun /bin/logoscore \
-    && ln -s /app/logos/lgpm/AppRun /bin/lgpm \
-    && ln -s /app/logos/lgpd/AppRun /bin/lgpd
+ARG LOGOSCTL_VERSION=0.3.0
+ARG TARGETARCH
+RUN case "${TARGETARCH:-$(dpkg --print-architecture)}" in \
+        amd64) arch=x86_64 ;; \
+        arm64) arch=aarch64 ;; \
+        *) echo "unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+    && mkdir -p /app && cd /app \
+    && curl -fsSL "https://github.com/logos-co/logos-logoscore-cli/releases/download/${LOGOSCTL_VERSION}/logosctl-${arch}-linux.tar.gz" | tar -xz \
+    && "./logosctl-${arch}.AppImage" --appimage-extract > /dev/null \
+    && mv squashfs-root logosctl \
+    && rm "logosctl-${arch}.AppImage" \
+    && ln -s /app/logosctl/AppRun /usr/local/bin/logosctl
 
-RUN mkdir -p /var/lib/logos/blockchain /var/lib/logos/config /var/lib/logos/persistence \
+RUN mkdir -p /var/lib/logos/blockchain /var/lib/logos/persistence \
     && usermod -u 10000 ubuntu && groupmod -g 10000 ubuntu \
     && chown -R ubuntu:ubuntu /var/lib/logos /home/ubuntu
 
 USER ubuntu
 WORKDIR /home/ubuntu
 
+ENV LANG=C.UTF-8 LOGOSCTL_CONFIG_DIR=/var/lib/logos
+COPY --chown=ubuntu:ubuntu config.yaml /tmp/config.yaml
+RUN logosctl daemon config set /tmp/config.yaml && rm /tmp/config.yaml
+
 ARG DELIVERY_VERSION=0.2.1
 ARG STORAGE_VERSION=2.1.3
 ARG BLOCKCHAIN_VERSION=0.2.4
 ARG OPENMETRICS_VERSION=0.1.1
 ARG RLN_VERSION
-ARG LEZ_RLN_VERSION
-ARG LEZ_CORE_VERSION
 
 ARG MODULES_REPO=https://raw.githubusercontent.com/logos-co/logos-modules-release/refs/heads/main/logos-repo.json
 # Separate catalog until the RLN modules are published to logos-modules-release.
 ARG RLN_REPO=https://github.com/logos-co/logos-rln-modules/releases/download/index/logos-repo.json
 
-ENV LGPD_CONFIG=/home/ubuntu/repositories.json
-RUN for repo in "${MODULES_REPO}" "${RLN_REPO}"; do \
-        lgpd --config ${LGPD_CONFIG} --json repo list | grep -qF "${repo}" \
-            || lgpd --config ${LGPD_CONFIG} repo add "${repo}"; \
-    done
+RUN logosctl daemon start --detach \
+    && for repo in "${MODULES_REPO}" "${RLN_REPO}"; do \
+        logosctl catalog ls | grep -qF "\"url\":\"${repo}\"" || logosctl catalog add "${repo}"; \
+    done \
+    && pkg() { [ -z "$2" ] || logosctl install "$1" --version "$2" --catalog "$3" -y; } \
+    && pkg delivery_module "${DELIVERY_VERSION}" "${MODULES_REPO}" \
+    && pkg storage_module "${STORAGE_VERSION}" "${MODULES_REPO}" \
+    && pkg blockchain_module "${BLOCKCHAIN_VERSION}" "${MODULES_REPO}" \
+    && pkg openmetrics "${OPENMETRICS_VERSION}" "${MODULES_REPO}" \
+    && pkg liblogos_rln_module "${RLN_VERSION}" "${RLN_REPO}" \
+    && logosctl package ls \
+    && logosctl daemon stop \
+    && while logosctl status > /dev/null 2>&1; do sleep 1; done \
+    && rm -rf /var/lib/logos/logs/*
 
-RUN mkdir packages \
-    && if [ -n "${DELIVERY_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} --repo ${MODULES_REPO} download delivery_module --version ${DELIVERY_VERSION} --output ./packages; fi \
-    && if [ -n "${STORAGE_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} --repo ${MODULES_REPO} download storage_module --version ${STORAGE_VERSION} --output ./packages; fi \
-    && if [ -n "${BLOCKCHAIN_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} --repo ${MODULES_REPO} download blockchain_module --version ${BLOCKCHAIN_VERSION} --output ./packages; fi \
-    && if [ -n "${RLN_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} --repo ${RLN_REPO} download liblogos_rln_module --version ${RLN_VERSION} --output ./packages; fi \
-    && if [ -n "${LEZ_RLN_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} --repo ${RLN_REPO} download liblogos_lez_rln_module --version ${LEZ_RLN_VERSION} --output ./packages; fi \
-    && if [ -n "${LEZ_CORE_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} --repo ${RLN_REPO} download lez_core --version ${LEZ_CORE_VERSION} --output ./packages; fi \
-    && if [ -n "${OPENMETRICS_VERSION}" ]; then lgpd --config ${LGPD_CONFIG} --repo ${MODULES_REPO} download openmetrics --version ${OPENMETRICS_VERSION} --output ./packages; fi
-
-RUN mkdir modules \
-    && lgpm install --dir ./packages --modules-dir ./modules
-
-CMD ["logoscore", "-D", "-m", "./modules", "--config-dir", "/var/lib/logos/config", "--persistence-path", "/var/lib/logos/persistence"]
+CMD ["logosctl", "daemon", "start"]

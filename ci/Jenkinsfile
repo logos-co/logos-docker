@@ -30,6 +30,11 @@ pipeline {
 
   parameters {
     string(
+      name: 'LOGOSCTL_VERSION',
+      description: 'logosctl release. Leave empty for default.',
+      defaultValue: ''
+    )
+    string(
       name: 'DELIVERY_VERSION',
       description: 'Delivery module version. Leave empty to exclude.',
       defaultValue: lastParam('DELIVERY_VERSION', '0.3.0')
@@ -48,16 +53,6 @@ pipeline {
       name: 'RLN_VERSION',
       description: 'RLN module version. Leave empty to exclude.',
       defaultValue: lastParam('RLN_VERSION', '')
-    )
-    string(
-      name: 'LEZ_RLN_VERSION',
-      description: 'LEZ RLN module version.',
-      defaultValue: lastParam('LEZ_RLN_VERSION', '')
-    )
-    string(
-      name: 'LEZ_CORE_VERSION',
-      description: 'LEZ core version.',
-      defaultValue: lastParam('LEZ_CORE_VERSION', '')
     )
     string(
       name: 'OPENMETRICS_VERSION',
@@ -89,8 +84,7 @@ pipeline {
     stage('Check') {
       steps { script {
         image.inside('--entrypoint=""') {
-          sh 'logoscore --version'
-          sh 'lgpd --version'
+          sh 'logosctl --version'
         }
       } }
     }
@@ -139,11 +133,9 @@ def buildArgs() {
     args += "--build-arg RLN_VERSION='${params.RLN_VERSION}' "
     args += "--label=rln='${params.RLN_VERSION}' "
   }
-  if (params.LEZ_RLN_VERSION?.trim()) {
-    args += "--build-arg LEZ_RLN_VERSION='${params.LEZ_RLN_VERSION}' "
-  }
-  if (params.LEZ_CORE_VERSION?.trim()) {
-    args += "--build-arg LEZ_CORE_VERSION='${params.LEZ_CORE_VERSION}' "
+  if (params.LOGOSCTL_VERSION?.trim()) {
+    args += "--build-arg LOGOSCTL_VERSION='${params.LOGOSCTL_VERSION}' "
+    args += "--label=logosctl='${params.LOGOSCTL_VERSION}' "
   }
   if (params.MODULES_REPO?.trim()) {
     args += "--build-arg MODULES_REPO='${params.MODULES_REPO}' "
