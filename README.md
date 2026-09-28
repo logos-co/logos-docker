@@ -40,9 +40,14 @@ Loading it pulls the two dependencies in automatically:
 docker exec logos logoscore --config-dir /var/lib/logos/config load-module liblogos_rln_module
 ```
 
+Setting `LIBP2P_VERSION` adds [`libp2p_module`](https://github.com/logos-co/logos-libp2p-module),
+which the delivery module uses to host Kademlia service discovery when its
+config sets `"pluginKadDiscovery": true`.
+
 Each module version is a build arg — `DELIVERY_VERSION`, `STORAGE_VERSION`,
 `BLOCKCHAIN_VERSION`, `OPENMETRICS_VERSION`, `RLN_VERSION`, `LEZ_RLN_VERSION`,
-`LEZ_CORE_VERSION`. Leave one empty to exclude that module.
+`LEZ_CORE_VERSION`, `LIBP2P_VERSION`. Leave one empty to exclude that module.
+`LIBP2P_VERSION` is empty by default.
 
 ## Building against another catalog
 

@@ -60,6 +60,11 @@ pipeline {
       defaultValue: lastParam('LEZ_CORE_VERSION', '')
     )
     string(
+      name: 'LIBP2P_VERSION',
+      description: 'libp2p module version. Leave empty to exclude.',
+      defaultValue: lastParam('LIBP2P_VERSION', '')
+    )
+    string(
       name: 'OPENMETRICS_VERSION',
       description: 'Openmetrics module version. Leave empty to exclude.',
       defaultValue: lastParam('OPENMETRICS_VERSION', '0.1.1')
@@ -144,6 +149,10 @@ def buildArgs() {
   }
   if (params.LEZ_CORE_VERSION?.trim()) {
     args += "--build-arg LEZ_CORE_VERSION='${params.LEZ_CORE_VERSION}' "
+  }
+  if (params.LIBP2P_VERSION?.trim()) {
+    args += "--build-arg LIBP2P_VERSION='${params.LIBP2P_VERSION}' "
+    args += "--label=libp2p='${params.LIBP2P_VERSION}' "
   }
   if (params.MODULES_REPO?.trim()) {
     args += "--build-arg MODULES_REPO='${params.MODULES_REPO}' "
