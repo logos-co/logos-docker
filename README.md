@@ -85,8 +85,8 @@ curl http://localhost:9090/metrics
 
 For a complete, runnable walkthrough — build, run, load the modules, initialize
 `openmetrics`, and scrape `/metrics` from the host — see the doc-test in
-[`doctests/`](doctests/) ([rendered](doctests/outputs/openmetrics.md); run it with
-`cd doctests && ./run.sh`).
+[`doctests/openmetrics.test.yaml`](doctests/openmetrics.test.yaml). Run it with
+`cd doctests && ./run.sh`, which also renders it to `doctests/outputs/openmetrics.md`.
 
 ## Persisting state across restarts
 
