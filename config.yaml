@@ -1,0 +1,4 @@
+dirs:
+  data: persistence
+logging:
+  enabled: false
