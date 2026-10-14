@@ -15,15 +15,17 @@ RUN case "${TARGETARCH:-$(dpkg --print-architecture)}" in \
     && rm "logosctl-${arch}.AppImage"
 RUN ln -s /app/logosctl/AppRun /usr/local/bin/logosctl
 
-RUN mkdir -p /var/lib/logos/blockchain /var/lib/logos/persistence \
+RUN mkdir -p /var/lib/logos/blockchain /var/lib/logos/persistence /conf \
     && usermod -u 10000 ubuntu && groupmod -g 10000 ubuntu \
-    && chown -R ubuntu:ubuntu /var/lib/logos /home/ubuntu
+    && chown -R ubuntu:ubuntu /var/lib/logos /home/ubuntu /conf
 
 USER ubuntu
 WORKDIR /home/ubuntu
 
 ENV LANG=C.UTF-8 LOGOSCTL_CONFIG_DIR=/var/lib/logos
 COPY --chown=ubuntu:ubuntu config.yaml /tmp/config.yaml
+COPY --chown=ubuntu:ubuntu storage_config.json /conf/storage_config.json
+COPY --chown=ubuntu:ubuntu waku_config.json /conf/waku_config.json
 RUN logosctl daemon config set /tmp/config.yaml && rm /tmp/config.yaml
 
 ARG DELIVERY_VERSION=0.2.1
