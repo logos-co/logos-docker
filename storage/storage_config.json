@@ -1,0 +1,19 @@
+{
+  "log-level": "DEBUG",
+  "data-dir": "/data",
+  "repo-kind": "fs",
+  "listen-ip": "0.0.0.0",
+  "listen-port": 8080,
+  "max-peers": 160,
+  "storage-quota": 21474836480,
+  "block-ttl": "4w2d",
+  "block-mi": "300s",
+  "block-mn": 3,
+  "block-retries": 6,
+  "relay-server": true,
+  "autonat-server": true,
+  "mix-enabled": true,
+  "metrics": false,
+  "bootstrap-node": [],
+  "dht-mix-proxy": []
+}
