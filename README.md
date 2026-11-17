@@ -13,6 +13,47 @@ docker run logos
 
 The default `CMD` is `logosctl daemon start`.
 
+## Running a node
+
+`logos-node` runs a testnet node: it starts the daemon, loads the modules and
+makes the calls from the [Run a Logos node](https://docs.logos.co/run-a-node)
+guide, and serves OpenMetrics on port 9464.
+
+```bash
+docker run -d --name logos-node \
+  -v logos-blockchain:/var/lib/logos/blockchain \
+  -v logos-storage:/var/lib/logos/storage \
+  -v logos-persistence:/var/lib/logos/persistence \
+  -p 3000:3000/udp -p 8090:8090/udp -p 8091:8091/tcp -p 9000:9000/udp \
+  -p 30303:30303/tcp -p 30303:30303/udp -p 127.0.0.1:9464:9464 \
+  -e LOGOS_NODE_PUBLIC_IP=<public-ip> \
+  logos logos-node
+```
+
+These are the ports the guide opens. On its first start the node generates
+`user_config.yaml` and `keystore.yaml` in `/var/lib/logos/blockchain`, readable
+by the node user only, and reuses them on every later start. Keep the volumes:
+`logos-blockchain` holds the node's keys, chain state and hourly
+`logos-blockchain.log.*` files, and `logos-storage` the storage node's identity
+and data.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `LOGOS_NODE_MODULES` | `blockchain_module storage_module delivery_module` | Modules to start, in order |
+| `LOGOS_NODE_PEERS` | the `BLOCKCHAIN_PEERS` build arg, the testnet peers the guide lists | Blockchain bootstrap peers, space- or comma-separated, used when generating the config |
+| `LOGOS_NODE_PUBLIC_IP` | unset | Public IPv4 delivery advertises; unset, delivery picks an address itself, which behind Docker's NAT is the container's own |
+| `LOGOS_NODE_METRICS_PORT` | `9464` | OpenMetrics port; empty disables it |
+
+Give the container time to stop: a node in the middle of starting can need more
+than Docker's default 10 seconds, so use `docker stop -t 60` (or
+`stop_grace_period: 60s` in Compose).
+
+A module that fails to start is reported in `docker logs` and skipped. The
+container's health check runs `logos-node health`, which also checks the
+blockchain API when this container started the blockchain module. After a
+restart the node replays its stored blocks before the API answers, about 10
+minutes for 20,000 blocks, and the check passes while it does.
+
 ## What's inside
 
 The image ships [`logosctl`](https://github.com/logos-co/logos-logoscore-cli/blob/master/docs/logosctl.md)
@@ -70,9 +111,12 @@ lives in the session:
 - `/var/lib/logos/modules/` — installed modules
 - `/var/lib/logos/persistence/` — per-module instance persistence (`dirs.data`)
 - `/var/lib/logos/blockchain/` — blockchain state
+- `/var/lib/logos/storage/` — the storage node `logosctl` starts with the daemon
+  (`~/.logos_storage` links here)
 - `/var/lib/logos/daemon/` — daemon config and runtime state
 
-The daemon logs to stdout only, so `docker logs` has everything.
+The daemon logs to stdout, so `docker logs` has it; the blockchain module also
+writes hourly log files next to its state.
 
 ## Serving OpenMetrics
 
