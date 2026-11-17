@@ -1,0 +1,35 @@
+name: Monitoring
+
+on:
+  pull_request:
+    branches: [master, main]
+    paths: ['monitoring/**', '.github/workflows/monitoring.yml']
+  push:
+    branches: [master, main]
+    paths: ['monitoring/**', '.github/workflows/monitoring.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: alert rules and stack config
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The same image the stack runs, so the rules are checked by that Prometheus.
+      - name: Check the Prometheus config and test the alerts
+        working-directory: monitoring/prometheus
+        run: |
+          promtool() { docker run --rm -v "$PWD:/w" -w /w --entrypoint promtool prom/prometheus:v3.15.1 "$@"; }
+          promtool check config prometheus.yaml
+          promtool test rules alerts.test.yaml
+
+      - name: Check the compose file and the dashboard
+        run: |
+          docker compose -f monitoring/compose.yaml config -q
+          jq -e '.uid == "logos-node" and (.panels | length > 0)' monitoring/grafana/dashboards/logos-node.json

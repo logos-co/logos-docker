@@ -1,0 +1,235 @@
+#!/usr/bin/env bash
+# Runs a Logos node: starts the logosctl daemon, loads the node's modules and
+# makes the calls the "Run a Logos node" guide makes by hand
+# (https://docs.logos.co/run-a-node), then keeps the daemon in the foreground.
+#
+#   logos-node          run the node (the container's command)
+#   logos-node health   exit 0 when the daemon answers and the blockchain API
+#                       does too, if this container started the blockchain module.
+#                       Until the API first answers, a node still replaying its
+#                       stored blocks counts as healthy.
+#
+# Environment:
+#   LOGOS_NODE_MODULES       modules to start, in order
+#                            (default: blockchain_module storage_module delivery_module)
+#   LOGOS_NODE_PEERS         blockchain bootstrap peers, separated by spaces or
+#                            commas. The image sets it to the peers of the
+#                            network its blockchain module joins (BLOCKCHAIN_PEERS).
+#                            Only used when the node has no user_config.yaml yet.
+#   LOGOS_NODE_PUBLIC_IP     public IPv4 that delivery advertises; without it
+#                            delivery picks an address itself, which behind
+#                            Docker's NAT is the container's own
+#   LOGOS_NODE_METRICS_PORT  OpenMetrics port (default: 9464, empty disables)
+#
+# The blockchain config, keystore, state and logs live in
+# /var/lib/logos/blockchain, the volume to keep across restarts. The config and
+# keystore are generated there on the first start only.
+set -euo pipefail
+# Nothing here expands a glob; env values must stay literal.
+set -f
+# The daemon and its modules inherit this: the keystore is born private.
+umask 077
+
+data=/var/lib/logos/blockchain
+started_file=/tmp/logos-node.modules
+# Holds the UTC time this run started; earlier log lines are not this run's.
+run_file=/tmp/logos-node.run
+# Written once the blockchain API has answered in this run.
+api_file=/tmp/logos-node.api
+
+modules=${LOGOS_NODE_MODULES-blockchain_module storage_module delivery_module}
+peers=${LOGOS_NODE_PEERS:-}
+metrics_port=${LOGOS_NODE_METRICS_PORT-9464}
+
+# A restarted node replays its stored blocks before the API answers, which
+# takes minutes per ten thousand blocks. It is replaying while the module is
+# loaded and its last chain recovery line in this run is not "Chain recovery
+# finished". Only log files written since the run started are read.
+replaying() {
+  [[ $(logosctl module ls 2>/dev/null) == *'"name":"blockchain_module","status":"loaded"'* ]] || return 1
+  local since last
+  since=$(<"$run_file") || return 1
+  last=$(find "$data" -maxdepth 1 -name 'logos-blockchain.log.2*' -newer "$run_file" -print0 |
+    sort -z | xargs -0 -r grep -h -i -e 'chain recovery' | tail -n 1) || true
+  [[ $last =~ [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2} ]] || return 1
+  [[ ! ${BASH_REMATCH[0]} < $since && $last != *'Chain recovery finished'* ]]
+}
+
+if [ "${1:-}" = health ]; then
+  logosctl daemon status >/dev/null 2>&1 || exit 1
+  if grep -qx blockchain_module "$started_file" 2>/dev/null; then
+    if curl -fsS -m 5 http://127.0.0.1:8080/cryptarchia/info >/dev/null; then
+      touch "$api_file"
+    elif [ -e "$api_file" ] || ! replaying; then
+      exit 1
+    fi
+  fi
+  exit 0
+fi
+
+log() {
+  echo "logos-node: $*"
+}
+
+stopping=0
+daemon_pid=""
+# shellcheck disable=SC2329 # invoked by the trap below
+stop() {
+  stopping=1
+  log "stopping"
+  logosctl daemon stop >/dev/null 2>&1 || kill -TERM "$daemon_pid" 2>/dev/null || true
+}
+trap stop TERM INT
+
+# run <command...>: runs it in the background and waits, so a stop signal is
+# handled at once instead of after a slow call returns. Output goes to $out.
+out=""
+run() {
+  local tmp rc=0
+  tmp=$(mktemp)
+  "$@" >"$tmp" 2>&1 &
+  wait $! || rc=$?
+  # A signal ends the first wait early; the command may still be running.
+  while kill -0 $! 2>/dev/null; do wait $! || rc=$?; done
+  out=$(cat "$tmp")
+  rm -f "$tmp"
+  return "$rc"
+}
+
+# call <module> <method> [args...]: a logosctl call that fails when the module
+# reports an error, not only when logosctl cannot reach it.
+call() {
+  if run logosctl call "$@" && [[ $out == *'"status":"ok"'* && $out != *'"success":false'* ]]; then
+    return 0
+  fi
+  log "$1.$2 failed: $out"
+  return 1
+}
+
+load() {
+  run logosctl module load "$1" || {
+    log "could not load $1: $out"
+    return 1
+  }
+}
+
+start_blockchain() {
+  load blockchain_module || return 1
+  if [ ! -f "$data/user_config.yaml" ]; then
+    if [ -z "$peers" ]; then
+      log "no user_config.yaml in $data and no LOGOS_NODE_PEERS to generate one with"
+      return 1
+    fi
+    log "no user_config.yaml in $data, generating one with peers: $peers"
+    local peer list=""
+    for peer in ${peers//,/ }; do
+      list+="${list:+,}\"$peer\""
+    done
+    printf '{"initial_peers":[%s]}\n' "$list" >/tmp/peers.json
+    call blockchain_module generate_user_config @/tmp/peers.json || {
+      # Keep a keystore that was written: it holds keys. A config left behind
+      # would stop the next start from generating a complete one.
+      rm -f "$data/user_config.yaml"
+      return 1
+    }
+  fi
+  chmod 600 "$data/user_config.yaml" "$data/keystore.yaml" || return 1
+  # A restarted node replays its stored blocks inside start. The call can then
+  # end in a transport error (a timeout, "RPC call failed") while the node keeps
+  # starting, as the guide notes. Only an error from the module itself is a
+  # failed start.
+  call blockchain_module start "$data/user_config.yaml" "" && return 0
+  if [[ $out == *'"status":"error"'* && $out != *'"success":false'* ]]; then
+    log "blockchain_module.start did not answer; the node keeps replaying its stored blocks"
+    return 0
+  fi
+  return 1
+}
+
+start_delivery() {
+  load delivery_module || return 1
+  local nat=any
+  if [ -n "${LOGOS_NODE_PUBLIC_IP:-}" ]; then
+    nat="extip:$LOGOS_NODE_PUBLIC_IP"
+  else
+    log "LOGOS_NODE_PUBLIC_IP is not set; delivery may advertise an address peers cannot reach"
+  fi
+  printf '{"entryLayer":"kernel","kernelConf":{"preset":"logos.test","relay":true,"logLevel":"INFO","tcpPort":30303,"discv5UdpPort":9000,"discv5Discovery":true,"nat":"%s"}}\n' \
+    "$nat" >/tmp/delivery.json
+  call delivery_module createNode @/tmp/delivery.json && call delivery_module start
+}
+
+start_module() {
+  case "$1" in
+    blockchain_module) start_blockchain ;;
+    delivery_module) start_delivery ;;
+    *) load "$1" ;;
+  esac
+}
+
+# Metrics for the modules that started. blockchain and delivery render their
+# own OpenMetrics text; the others return structured metrics.
+start_metrics() {
+  local entries="" module
+  while read -r module; do
+    case "$module" in
+      blockchain_module | delivery_module) entries+="${entries:+,}{\"name\":\"$module\",\"format\":\"text\"}" ;;
+      *) entries+="${entries:+,}{\"name\":\"$module\"}" ;;
+    esac
+  done <"$started_file"
+  load openmetrics || return 1
+  # start returns 1 when it serves and 0 when it could not.
+  run logosctl call openmetrics start "{\"port\":$metrics_port,\"modules\":[$entries]}" || true
+  [[ $out == *'"result":1'* ]] || {
+    log "openmetrics.start failed: $out"
+    return 1
+  }
+}
+
+cd "$data"
+: >"$started_file"
+rm -f "$api_file"
+date -u +%Y-%m-%dT%H:%M:%S >"$run_file"
+# A daemon killed without a clean stop leaves its state file behind.
+rm -f "${LOGOSCTL_CONFIG_DIR:-$HOME/.logosctl}/daemon/state.json"
+logosctl daemon start &
+daemon_pid=$!
+
+for _ in $(seq 60); do
+  [ "$stopping" -eq 0 ] || break
+  logosctl daemon status >/dev/null 2>&1 && break
+  kill -0 "$daemon_pid" 2>/dev/null || break
+  sleep 1
+done
+failed=0
+if [ "$stopping" -eq 0 ] && ! logosctl daemon status >/dev/null 2>&1; then
+  log "the daemon did not come up"
+  failed=1
+  stop
+fi
+
+# A module that fails is reported and skipped; the others still start.
+for module in $modules; do
+  [ "$stopping" -eq 0 ] || break
+  if start_module "$module"; then
+    echo "$module" >>"$started_file"
+    log "started $module"
+  else
+    log "skipped $module"
+  fi
+done
+
+if [ "$stopping" -eq 0 ] && [ -n "$metrics_port" ]; then
+  if start_metrics; then log "serving metrics on :$metrics_port"; else log "metrics not started"; fi
+fi
+
+# A requested stop exits 0; otherwise the daemon's exit status is the
+# container's, so a restart policy sees a crash.
+status=0
+wait "$daemon_pid" || status=$?
+while kill -0 "$daemon_pid" 2>/dev/null; do
+  wait "$daemon_pid" || status=$?
+done
+if [ "$failed" -eq 1 ]; then exit 1; fi
+if [ "$stopping" -eq 1 ]; then exit 0; fi
+exit "$status"

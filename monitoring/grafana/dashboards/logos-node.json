@@ -1,0 +1,824 @@
+{
+  "uid": "logos-node",
+  "title": "Logos node",
+  "tags": [
+    "logos"
+  ],
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "description": "A Logos node's openmetrics endpoint: blockchain, delivery and storage modules.",
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Prometheus",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "options": [],
+        "refresh": 1,
+        "hide": 0
+      },
+      {
+        "name": "instance",
+        "label": "Node",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": {
+          "query": "label_values(up{job=\"logos-node\"}, instance)",
+          "refId": "instance"
+        },
+        "definition": "label_values(up{job=\"logos-node\"}, instance)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "current": {},
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Overview",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Metrics endpoint",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Down",
+                  "color": "red",
+                  "index": 0
+                },
+                "1": {
+                  "text": "Up",
+                  "color": "green",
+                  "index": 1
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "up{job=\"logos-node\",instance=~\"$instance\"}",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "description": "Whether Prometheus can scrape the node's openmetrics endpoint.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Tip height",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 4,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "consensus_tip_height{job=\"logos-node\",instance=~\"$instance\"}",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Slots behind",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 9,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (instance) (time_current_slot{job=\"logos-node\",instance=~\"$instance\"} - consensus_current_slot{job=\"logos-node\",instance=~\"$instance\"})",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "description": "Wall-clock slot minus the slot of the node's tip. Slots are one second.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Finalized height",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 14,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "consensus_finalized_height{job=\"logos-node\",instance=~\"$instance\"}",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Modules reporting",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 19,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "count by (instance) (count by (instance, module) ({job=\"logos-node\",instance=~\"$instance\",module!=\"\"}))",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "description": "Modules whose metrics the openmetrics endpoint served in the last scrape.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 7,
+      "type": "row",
+      "title": "Blockchain",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "panels": []
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Slots behind",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (instance) (time_current_slot{job=\"logos-node\",instance=~\"$instance\"} - consensus_current_slot{job=\"logos-node\",instance=~\"$instance\"})",
+          "legendFormat": "{{instance}}"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Height",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "consensus_tip_height{job=\"logos-node\",instance=~\"$instance\"}",
+          "legendFormat": "{{instance}} tip"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "consensus_finalized_height{job=\"logos-node\",instance=~\"$instance\"}",
+          "legendFormat": "{{instance}} finalized"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Peers",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 14
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "consensus_peers_connected{job=\"logos-node\",instance=~\"$instance\"}",
+          "legendFormat": "{{instance}} peers"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "consensus_connections{job=\"logos-node\",instance=~\"$instance\"}",
+          "legendFormat": "{{instance}} connections"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Blocks imported",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 14
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(consensus_blocks_imported_total_total{job=\"logos-node\",instance=~\"$instance\"}[5m])",
+          "legendFormat": "{{instance}}"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Mempool and orphans",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 14
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "mempool_transactions_pending{job=\"logos-node\",instance=~\"$instance\"}",
+          "legendFormat": "{{instance}} pending transactions"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "orphan_blocks_pending{job=\"logos-node\",instance=~\"$instance\"}",
+          "legendFormat": "{{instance}} pending orphan blocks"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "consensus_forks_count{job=\"logos-node\",instance=~\"$instance\"}",
+          "legendFormat": "{{instance}} forks"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Dial failures",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 22
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(network_dial_failures_total_total{job=\"logos-node\",instance=~\"$instance\"}[5m])",
+          "legendFormat": "{{instance}}"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Blockchain database requests",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 22
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(storage_request_duration_seconds_count{job=\"logos-node\",instance=~\"$instance\",module=\"blockchain_module\"}[5m])",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "description": "Reads and writes to the blockchain module's own database, not the storage module."
+    },
+    {
+      "id": 15,
+      "type": "row",
+      "title": "Delivery",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 28
+      },
+      "panels": []
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "Peers",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 29
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (instance, direction) (logos_delivery_connected_peers{job=\"logos-node\",instance=~\"$instance\"})",
+          "legendFormat": "{{instance}} connected {{direction}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "libp2p_peers{job=\"logos-node\",instance=~\"$instance\",module=\"delivery_module\"}",
+          "legendFormat": "{{instance}} libp2p"
+        }
+      ],
+      "description": "Connected peers summed over protocols, by direction; a peer on several protocols counts once per protocol."
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "Messages",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 29
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (instance, type) (rate(logos_delivery_node_messages_total{job=\"logos-node\",instance=~\"$instance\"}[5m]))",
+          "legendFormat": "{{instance}} {{type}}"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "type": "timeseries",
+      "title": "Errors",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 29
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (instance, type) (rate(logos_delivery_node_errors_total{job=\"logos-node\",instance=~\"$instance\"}[5m]))",
+          "legendFormat": "{{instance}} {{type}}"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "type": "row",
+      "title": "Storage",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 37
+      },
+      "panels": []
+    },
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "Peers",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 38
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "logos_storage_libp2p_peers{job=\"logos-node\",instance=~\"$instance\"}",
+          "legendFormat": "{{instance}} libp2p"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "logos_storage_kad_routing_table_peers{job=\"logos-node\",instance=~\"$instance\"}",
+          "legendFormat": "{{instance}} DHT routing table"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "Blocks exchanged",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 38
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(logos_storage_block_exchange_blocks_sent_total{job=\"logos-node\",instance=~\"$instance\"}[5m])",
+          "legendFormat": "{{instance}} sent"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(logos_storage_block_exchange_blocks_received_total{job=\"logos-node\",instance=~\"$instance\"}[5m])",
+          "legendFormat": "{{instance}} received"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "type": "timeseries",
+      "title": "Failed block requests",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 38
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(logos_storage_block_exchange_requests_failed_total_total{job=\"logos-node\",instance=~\"$instance\"}[5m])",
+          "legendFormat": "{{instance}}"
+        }
+      ]
+    }
+  ]
+}

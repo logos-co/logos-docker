@@ -1,7 +1,7 @@
 FROM ubuntu:24.04
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl netcat-openbsd && rm -rf /var/lib/apt/lists/*
 
-ARG LOGOSCTL_VERSION=0.3.0
+ARG LOGOSCTL_VERSION=0.3.2
 ARG TARGETARCH
 RUN case "${TARGETARCH:-$(dpkg --print-architecture)}" in \
         amd64) arch=x86_64 ;; \
@@ -26,10 +26,12 @@ ENV LANG=C.UTF-8 LOGOSCTL_CONFIG_DIR=/var/lib/logos
 COPY --chown=ubuntu:ubuntu config.yaml /tmp/config.yaml
 RUN logosctl daemon config set /tmp/config.yaml && rm /tmp/config.yaml
 
-ARG DELIVERY_VERSION=0.2.1
-ARG STORAGE_VERSION=2.1.3
-ARG BLOCKCHAIN_VERSION=0.2.4
-ARG OPENMETRICS_VERSION=0.1.1
+ARG DELIVERY_VERSION=0.3.2
+ARG STORAGE_VERSION=3.0.2
+ARG BLOCKCHAIN_VERSION=0.3.4
+# Bootstrap peers of the network BLOCKCHAIN_VERSION joins, from its release; bump them together.
+ARG BLOCKCHAIN_PEERS="/ip4/65.109.51.37/udp/3000/quic-v1/p2p/12D3KooWFrouXfmrR4nsLMtE7wu15DoMJ6VtoUtHinREZCvbWHar /ip4/65.109.51.37/udp/3001/quic-v1/p2p/12D3KooWJRGau8M1rjT7R5e4YYsgdFhsMX35nRDtMwCDjxQkXAHz /ip4/65.109.51.37/udp/3002/quic-v1/p2p/12D3KooWQXJavMDTRscjauFSgVAB1VLB6Rzpy2uY5SU9Tk7927tb /ip4/65.109.51.37/udp/50001/quic-v1/p2p/12D3KooWSQc7CcGtvWDPF1yCbBthFnQjprfCVHmfmNDUrSmqQsU1"
+ARG OPENMETRICS_VERSION=0.1.2
 ARG RLN_VERSION
 ARG LIBP2P_VERSION
 
@@ -49,6 +51,18 @@ RUN logosctl daemon start --detach \
     && logosctl package ls \
     && logosctl daemon stop \
     && while logosctl status > /dev/null 2>&1; do sleep 1; done \
-    && rm -rf /var/lib/logos/logs/*
+    && rm -rf /var/lib/logos/logs/* \
+    && rm -rf /home/ubuntu/.logos_storage
+
+# logosctl starts a storage node with the daemon, in ~/.logos_storage. The build
+# step above started one too; its key is removed so containers do not share it,
+# and the directory moves into the session where a volume can keep it.
+RUN mkdir -p /var/lib/logos/storage && ln -s /var/lib/logos/storage /home/ubuntu/.logos_storage
+
+# `docker run <image> logos-node` runs a node; see the README.
+ENV LOGOS_NODE_PEERS=${BLOCKCHAIN_PEERS}
+COPY logos-node /usr/local/bin/logos-node
+EXPOSE 3000/udp 3400/udp 8090/udp 8091/tcp 9000/udp 30303/tcp 30303/udp 9464/tcp
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s CMD ["logos-node", "health"]
 
 CMD ["logosctl", "daemon", "start"]

@@ -1,0 +1,68 @@
+# Alerts for a Logos node scraped through its openmetrics endpoint
+# (job="logos-node"). Tested by alerts.test.yaml: promtool test rules alerts.test.yaml
+groups:
+  # One group: its rules run in order, so the alerts read this round's records.
+  - name: logos-node
+    rules:
+      # Which modules the endpoint serves, one cheap series per module.
+      - record: logos:module_series:count
+        expr: count by (job, instance, module) ({job="logos-node", module!="", __name__!~"ALERTS.*|logos:.*"})
+
+      # Slots tick once a second; this is how far the node's tip trails the clock.
+      - record: logos:blockchain_slots_behind
+        expr: |
+          sum by (job, instance, module) (
+            time_current_slot{job="logos-node"} - consensus_current_slot{job="logos-node"}
+          )
+
+      # A restart replays the stored chain before the blockchain module answers,
+      # and openmetrics 0.1.2 holds every scrape until it does: 92,919 blocks
+      # took about 23 minutes. The window covers that replay.
+      - alert: LogosNodeDown
+        expr: up{job="logos-node"} == 0
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Logos node {{ $labels.instance }} is not answering on its metrics endpoint"
+
+      # openmetrics is documented to leave out a module that stops answering, so
+      # its series disappear while the endpoint stays up. Only modules seen in the
+      # last 7 days count, so a module this node does not run never alerts. With
+      # openmetrics 0.1.2 an unloaded module stalls every scrape instead, which
+      # LogosNodeDown reports.
+      - alert: LogosModuleNotReporting
+        expr: |
+          (max_over_time(logos:module_series:count[7d]) unless logos:module_series:count)
+          and on (job, instance) (up{job="logos-node"} == 1)
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.module }} on {{ $labels.instance }} stopped reporting metrics"
+
+      # A node far behind during initial block download is fine while the gap
+      # shrinks; this alerts when the gap is over five minutes and has not shrunk
+      # in the last 15.
+      - alert: LogosBlockchainBehind
+        expr: |
+          logos:blockchain_slots_behind > 300
+          and delta(logos:blockchain_slots_behind[15m]) >= 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Blockchain on {{ $labels.instance }} is {{ $value | printf \"%.0f\" }} slots behind and not catching up"
+
+      # Summed per module: delivery reports one series per protocol and
+      # direction, and most of them are 0 on a healthy node.
+      - alert: LogosNoPeers
+        expr: |
+          sum by (job, instance, module) (consensus_peers_connected{job="logos-node"}) == 0
+          or sum by (job, instance, module) (logos_delivery_connected_peers{job="logos-node"}) == 0
+          or sum by (job, instance, module) (logos_storage_libp2p_peers{job="logos-node"}) == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.module }} on {{ $labels.instance }} has no peers"

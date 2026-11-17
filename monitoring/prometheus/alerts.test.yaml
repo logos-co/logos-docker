@@ -1,0 +1,141 @@
+# promtool test rules alerts.test.yaml
+rule_files:
+  - alerts.yaml
+
+evaluation_interval: 1m
+
+tests:
+  # The scrape fails: the node or its openmetrics endpoint is gone. A restart
+  # that replays the chain keeps the endpoint dark for about 23 minutes, which
+  # must not page.
+  - interval: 1m
+    input_series:
+      - series: 'up{job="logos-node",instance="node:9464"}'
+        values: '1 1 0x40'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: LogosNodeDown
+        exp_alerts: []
+      - eval_time: 33m
+        alertname: LogosNodeDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: logos-node, instance: "node:9464"}
+            exp_annotations:
+              summary: "Logos node node:9464 is not answering on its metrics endpoint"
+
+  # A module that reported stops reporting while the endpoint is still up, and
+  # the alert holds past an hour.
+  - interval: 1m
+    input_series:
+      - series: 'up{job="logos-node",instance="node:9464"}'
+        values: '1x100'
+      - series: 'consensus_tip_height{job="logos-node",instance="node:9464",module="blockchain_module",otel_scope_name="logos-blockchain-node"}'
+        values: '10x100'
+      - series: 'logos_delivery_connected_peers{job="logos-node",instance="node:9464",module="delivery_module",direction="Out",protocol="/vac/waku/relay/2.0.0"}'
+        values: '5x10 _x90'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: LogosModuleNotReporting
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: LogosModuleNotReporting
+        exp_alerts: &delivery_not_reporting
+          - exp_labels: {severity: warning, job: logos-node, instance: "node:9464", module: delivery_module}
+            exp_annotations:
+              summary: "delivery_module on node:9464 stopped reporting metrics"
+      - eval_time: 95m
+        alertname: LogosModuleNotReporting
+        exp_alerts: *delivery_not_reporting
+
+  # A module that never ran does not alert.
+  - interval: 1m
+    input_series:
+      - series: 'up{job="logos-node",instance="node:9464"}'
+        values: '1x40'
+      - series: 'consensus_tip_height{job="logos-node",instance="node:9464",module="blockchain_module",otel_scope_name="logos-blockchain-node"}'
+        values: '10x40'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: LogosModuleNotReporting
+        exp_alerts: []
+
+  # Synced node, then its tip stops while the wall clock keeps going.
+  - interval: 1m
+    input_series:
+      - series: 'time_current_slot{job="logos-node",instance="node:9464",module="blockchain_module",otel_scope_name="logos-blockchain-node"}'
+        values: '3000000+60x40'
+      - series: 'consensus_current_slot{job="logos-node",instance="node:9464",module="blockchain_module",otel_scope_name="logos-blockchain-node"}'
+        values: '2999990+60x5 3000290x35'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: LogosBlockchainBehind
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: LogosBlockchainBehind
+        exp_alerts:
+          - exp_labels: {severity: warning, job: logos-node, instance: "node:9464", module: blockchain_module}
+            exp_annotations:
+              summary: "Blockchain on node:9464 is 1810 slots behind and not catching up"
+
+  # Stuck during initial block download: a large gap reads as a whole number.
+  - interval: 1m
+    input_series:
+      - series: 'time_current_slot{job="logos-node",instance="node:9464",module="blockchain_module",otel_scope_name="logos-blockchain-node"}'
+        values: '3000000+60x40'
+      - series: 'consensus_current_slot{job="logos-node",instance="node:9464",module="blockchain_module",otel_scope_name="logos-blockchain-node"}'
+        values: '200000x40'
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: LogosBlockchainBehind
+        exp_alerts:
+          - exp_labels: {severity: warning, job: logos-node, instance: "node:9464", module: blockchain_module}
+            exp_annotations:
+              summary: "Blockchain on node:9464 is 2802100 slots behind and not catching up"
+
+  # Initial block download: far behind, but closing the gap.
+  - interval: 1m
+    input_series:
+      - series: 'time_current_slot{job="logos-node",instance="node:9464",module="blockchain_module",otel_scope_name="logos-blockchain-node"}'
+        values: '3000000+60x40'
+      - series: 'consensus_current_slot{job="logos-node",instance="node:9464",module="blockchain_module",otel_scope_name="logos-blockchain-node"}'
+        values: '200000+150000x40'
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: LogosBlockchainBehind
+        exp_alerts: []
+
+  # Delivery reports peers per protocol and direction; most are 0 on a healthy
+  # node. Only a module with no peers at all alerts.
+  - interval: 1m
+    input_series:
+      - series: 'logos_delivery_connected_peers{job="logos-node",instance="node:9464",module="delivery_module",direction="Out",protocol="/vac/waku/relay/2.0.0"}'
+        values: '46x15'
+      - series: 'logos_delivery_connected_peers{job="logos-node",instance="node:9464",module="delivery_module",direction="In",protocol="/vac/waku/store-query/3.0.0"}'
+        values: '0x15'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: LogosNoPeers
+        exp_alerts: []
+
+  # Peer counts at zero, per module.
+  - interval: 1m
+    input_series:
+      - series: 'consensus_peers_connected{job="logos-node",instance="node:9464",module="blockchain_module",otel_scope_name="logos-blockchain-node"}'
+        values: '5 0x15'
+      - series: 'logos_delivery_connected_peers{job="logos-node",instance="node:9464",module="delivery_module",direction="Out",protocol="/vac/waku/relay/2.0.0"}'
+        values: '3 0x15'
+      - series: 'logos_storage_libp2p_peers{job="logos-node",instance="node:9464",module="storage_module"}'
+        values: '7x15'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: LogosNoPeers
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: LogosNoPeers
+        exp_alerts:
+          - exp_labels: {severity: warning, job: logos-node, instance: "node:9464", module: blockchain_module}
+            exp_annotations:
+              summary: "blockchain_module on node:9464 has no peers"
+          - exp_labels: {severity: warning, job: logos-node, instance: "node:9464", module: delivery_module}
+            exp_annotations:
+              summary: "delivery_module on node:9464 has no peers"

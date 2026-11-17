@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 1m
+
+rule_files:
+  - alerts.yaml
+
+scrape_configs:
+  - job_name: logos-node
+    static_configs:
+      - targets: ["logos-node:9464"]

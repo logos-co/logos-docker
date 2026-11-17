@@ -1,0 +1,55 @@
+# A Logos node with Prometheus and Grafana: docker compose -f monitoring/compose.yaml up -d
+# Grafana: http://localhost:3001 (admin / $GRAFANA_ADMIN_PASSWORD, default admin)
+# Prometheus and its alerts: http://localhost:9090/alerts
+services:
+  logos-node:
+    build: ..
+    image: logos
+    # Rebuilt on every up, so an older local `logos` image without logos-node is not reused.
+    pull_policy: build
+    command: logos-node
+    restart: unless-stopped
+    stop_grace_period: 60s
+    environment:
+      LOGOS_NODE_PUBLIC_IP: ${LOGOS_NODE_PUBLIC_IP:-}
+    volumes:
+      - logos-blockchain:/var/lib/logos/blockchain
+      - logos-storage:/var/lib/logos/storage
+      - logos-persistence:/var/lib/logos/persistence
+    ports:
+      - "3000:3000/udp"
+      - "8090:8090/udp"
+      - "8091:8091/tcp"
+      - "9000:9000/udp"
+      - "30303:30303/tcp"
+      - "30303:30303/udp"
+
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    restart: unless-stopped
+    command: ["--config.file=/etc/prometheus/prometheus.yaml", "--storage.tsdb.path=/prometheus"]
+    volumes:
+      - ./prometheus:/etc/prometheus:ro
+      - prometheus:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+
+  grafana:
+    image: grafana/grafana:13.2.4
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/logos-node.json
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3001:3000"
+
+volumes:
+  logos-blockchain:
+  logos-storage:
+  logos-persistence:
+  prometheus:
+  grafana:
