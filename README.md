@@ -31,9 +31,17 @@ pre-installed under `/var/lib/logos/modules`:
 docker exec logos logosctl package ls
 ```
 
-Setting `RLN_VERSION` adds [`liblogos_rln_module`](https://github.com/logos-co/logos-rln-modules)
-(RLN membership management); its dependencies are installed with it, and
-loading it loads them too:
+RLN comes in two generations; set the one your delivery module uses:
+
+- `RLN_MODULE_VERSION` adds [`rln_module`](https://github.com/logos-co/logos-rln-module),
+  the RLN module of delivery_module 0.4 and later, together with its
+  dependencies `rln_lez_module` and `membership_allocation_client_module`.
+  Those come at the catalog's default versions unless `RLN_LEZ_MODULE_VERSION`
+  or `MEMBERSHIP_ALLOCATION_CLIENT_VERSION` pins them. Loading
+  `delivery_module` loads `rln_module` with it, as an optional dependency.
+- `RLN_VERSION` adds [`liblogos_rln_module`](https://github.com/logos-co/logos-rln-modules),
+  which delivery_module used before 0.4; its dependencies are installed with
+  it, and loading it loads them too:
 
 ```bash
 docker exec logos logosctl module load liblogos_rln_module
@@ -44,9 +52,10 @@ which the delivery module uses to host Kademlia service discovery when its
 config sets `"pluginKadDiscovery": true`.
 
 Each module version is a build arg — `DELIVERY_VERSION`, `STORAGE_VERSION`,
-`BLOCKCHAIN_VERSION`, `OPENMETRICS_VERSION`, `RLN_VERSION`, `LIBP2P_VERSION`.
-Leave one empty to exclude that module. `RLN_VERSION` and `LIBP2P_VERSION` are
-empty by default.
+`BLOCKCHAIN_VERSION`, `OPENMETRICS_VERSION`, `RLN_VERSION`,
+`RLN_MODULE_VERSION`, `RLN_LEZ_MODULE_VERSION`,
+`MEMBERSHIP_ALLOCATION_CLIENT_VERSION`, `LIBP2P_VERSION`. Leave one empty to
+exclude that module. The RLN and libp2p ones are empty by default.
 
 ## Building against another catalog
 

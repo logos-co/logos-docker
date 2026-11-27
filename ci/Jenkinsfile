@@ -51,8 +51,23 @@ pipeline {
     )
     string(
       name: 'RLN_VERSION',
-      description: 'RLN module version. Leave empty to exclude.',
+      description: 'liblogos_rln_module version, the RLN module delivery_module used before 0.4. Leave empty to exclude.',
       defaultValue: lastParam('RLN_VERSION', '')
+    )
+    string(
+      name: 'RLN_MODULE_VERSION',
+      description: 'rln_module version, the RLN module of delivery_module 0.4 and later. Installs its dependencies too. Leave empty to exclude.',
+      defaultValue: lastParam('RLN_MODULE_VERSION', '')
+    )
+    string(
+      name: 'RLN_LEZ_MODULE_VERSION',
+      description: 'rln_lez_module version, to pin the one rln_module installs. Leave empty for the catalog default.',
+      defaultValue: lastParam('RLN_LEZ_MODULE_VERSION', '')
+    )
+    string(
+      name: 'MEMBERSHIP_ALLOCATION_CLIENT_VERSION',
+      description: 'membership_allocation_client_module version, to pin the one rln_module installs. Leave empty for the catalog default.',
+      defaultValue: lastParam('MEMBERSHIP_ALLOCATION_CLIENT_VERSION', '')
     )
     string(
       name: 'LIBP2P_VERSION',
@@ -133,6 +148,16 @@ def buildArgs() {
   if (params.RLN_VERSION?.trim()) {
     args += "--build-arg RLN_VERSION='${params.RLN_VERSION}' "
     args += "--label=rln='${params.RLN_VERSION}' "
+  }
+  [
+    RLN_MODULE_VERSION: 'rln_module',
+    RLN_LEZ_MODULE_VERSION: 'rln_lez_module',
+    MEMBERSHIP_ALLOCATION_CLIENT_VERSION: 'membership_allocation_client',
+  ].each { arg, label ->
+    if (params[arg]?.trim()) {
+      args += "--build-arg ${arg}='${params[arg]}' "
+      args += "--label=${label}='${params[arg]}' "
+    }
   }
   if (params.LIBP2P_VERSION?.trim()) {
     args += "--build-arg LIBP2P_VERSION='${params.LIBP2P_VERSION}' "

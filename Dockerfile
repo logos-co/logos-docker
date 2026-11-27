@@ -31,6 +31,9 @@ ARG STORAGE_VERSION=2.1.3
 ARG BLOCKCHAIN_VERSION=0.2.4
 ARG OPENMETRICS_VERSION=0.1.1
 ARG RLN_VERSION
+ARG RLN_MODULE_VERSION
+ARG RLN_LEZ_MODULE_VERSION
+ARG MEMBERSHIP_ALLOCATION_CLIENT_VERSION
 ARG LIBP2P_VERSION
 
 ARG MODULES_REPO=https://raw.githubusercontent.com/logos-co/logos-modules-release/refs/heads/main/logos-repo.json
@@ -45,6 +48,9 @@ RUN logosctl daemon start --detach \
     && { [ -z "${BLOCKCHAIN_VERSION}" ] || logosctl install blockchain_module --version "${BLOCKCHAIN_VERSION}" -y; } \
     && { [ -z "${OPENMETRICS_VERSION}" ] || logosctl install openmetrics --version "${OPENMETRICS_VERSION}" -y; } \
     && { [ -z "${RLN_VERSION}" ] || logosctl install liblogos_rln_module --version "${RLN_VERSION}" -y; } \
+    && { [ -z "${RLN_LEZ_MODULE_VERSION}" ] || logosctl install rln_lez_module --version "${RLN_LEZ_MODULE_VERSION}" -y; } \
+    && { [ -z "${MEMBERSHIP_ALLOCATION_CLIENT_VERSION}" ] || logosctl install membership_allocation_client_module --version "${MEMBERSHIP_ALLOCATION_CLIENT_VERSION}" -y; } \
+    && { [ -z "${RLN_MODULE_VERSION}" ] || logosctl install rln_module --version "${RLN_MODULE_VERSION}" -y; } \
     && { [ -z "${LIBP2P_VERSION}" ] || logosctl install libp2p_module --version "${LIBP2P_VERSION}" -y; } \
     && logosctl package ls \
     && logosctl daemon stop \
